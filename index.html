@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>CORE-SENTINEL HMI | Digital Twin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&family=Inter:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#e4e4e4",
+                        surface: "#f0f0f0",
+                        surface_alt: "#d0d0d0",
+                        text_primary: "#2a2a2a",
+                        text_secondary: "#555555",
+                        border: "#aaaaaa",
+                        alarm_p1: "#ff0000",
+                        alarm_p2: "#ffff00",
+                        alarm_p3: "#ffa500",
+                        accent: "#444444",
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Courier New', 'monospace'],
+                        headline: ['Public Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; display: inline-block; line-height: 1; }
+        body { background-color: #e4e4e4; color: #2a2a2a; font-family: 'Inter', sans-serif; overflow: hidden; }
+        .telemetry-value { font-family: 'Courier New', monospace; font-weight: bold; }
+        .log-text { font-family: 'Courier New', monospace; font-size: 0.85rem; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #d0d0d0; }
+        ::-webkit-scrollbar-thumb { background: #888888; }
+        .mfe-container { display: none; }
+        .mfe-container.active { display: flex; }
+    </style>
+</head>
+<body class="flex flex-col h-screen text-text_primary">
+    <!-- Role Selector Overlay -->
+    <div id="role-selector" class="fixed inset-0 bg-[#000000]/80 z-[200] flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-surface border-2 border-border p-6 min-w-[400px] shadow-2xl flex flex-col gap-4">
+            <h2 class="font-headline font-bold text-xl uppercase text-center border-b border-border pb-2">Select Operator Role</h2>
+            <button class="role-btn bg-surface_alt hover:bg-border p-3 border border-border text-left font-bold" data-role="OL">Local Operator (OL) - Monitoring</button>
+            <button class="role-btn bg-surface_alt hover:bg-border p-3 border border-border text-left font-bold" data-role="OD">Diagnostic Operator (OD) - Interactivity</button>
+            <button class="role-btn bg-surface_alt hover:bg-border p-3 border border-border text-left font-bold" data-role="AS">System Admin (AS) - Configuration</button>
+        </div>
+    </div>
+
+    <!-- Alarm Banner MFE -->
+    <div id="mfe-alarm-banner" class="w-full bg-surface border-b border-border h-10 flex items-center justify-between px-4 z-50 hidden">
+        <div class="flex items-center gap-4 text-sm font-bold bg-surface px-2 py-1 border border-border h-full w-full">
+            <span class="material-symbols-outlined text-[18px]">warning</span>
+            <marquee id="alarm-marquee" class="telemetry-value w-full" scrollamount="5">SYSTEM NOMINAL</marquee>
+        </div>
+    </div>
+
+    <!-- Top Navigation -->
+    <header class="bg-surface text-text_primary font-headline font-bold uppercase h-14 flex justify-between items-center w-full px-6 z-40 border-b border-border">
+        <div class="flex items-center gap-8 h-full">
+            <span class="text-lg tracking-widest">InRebus DAO HMI</span>
+            <nav class="hidden md:flex gap-4 h-full items-end" id="top-nav">
+                <button class="nav-top active border-b-4 border-accent pb-2 px-2" data-target="mfe-reactor">Reactor</button>
+                <button class="nav-top border-b-4 border-transparent hover:border-border pb-2 px-2 text-text_secondary" data-target="mfe-coolant">Coolant</button>
+            </nav>
+        </div>
+        <div class="flex gap-2">
+            <span id="current-role-display" class="border border-border px-2 py-1 text-xs font-bold bg-surface_alt flex items-center gap-2">
+               ROLE: --
+            </span>
+            <button id="btn-audit" class="p-2 border border-border hover:bg-border transition-colors"><span class="material-symbols-outlined text-[18px]">list_alt</span></button>
+            <button id="btn-settings" class="p-2 border border-border hover:bg-border transition-colors role-gated" data-allowed="AS"><span class="material-symbols-outlined text-[18px]">settings</span></button>
+            <button id="btn-logout" class="p-2 border border-border hover:bg-border transition-colors"><span class="material-symbols-outlined text-[18px]">logout</span></button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Side Navigation -->
+        <aside class="bg-surface_alt text-text_primary w-56 z-30 flex flex-col border-r border-border">
+            <nav class="flex-1 py-4 flex flex-col gap-1" id="side-nav">
+                <button class="nav-side active bg-surface border-r-4 border-accent text-left px-4 py-3 font-bold flex gap-2 items-center" data-target="mfe-reactor">
+                    <span class="material-symbols-outlined">vibration</span> Primary Circuit
+                </button>
+                <button class="nav-side text-text_secondary hover:bg-border border-r-4 border-transparent text-left px-4 py-3 font-bold flex gap-2 items-center" data-target="mfe-secondary">
+                    <span class="material-symbols-outlined">cyclone</span> Secondary Circuit
+                </button>
+                <button class="nav-side text-text_secondary hover:bg-border border-r-4 border-transparent text-left px-4 py-3 font-bold flex gap-2 items-center" data-target="mfe-safety">
+                    <span class="material-symbols-outlined">verified_user</span> Safety
+                </button>
+                <button class="nav-side text-text_secondary hover:bg-border border-r-4 border-transparent text-left px-4 py-3 font-bold flex gap-2 items-center" data-target="mfe-ai">
+                    <span class="material-symbols-outlined">psychology</span> AI Copilot
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 bg-background overflow-hidden relative">
+            <!-- MFE: Reactor (Digital Twin + Charts) -->
+            <div id="mfe-reactor" class="mfe-container active flex-col h-full w-full">
+                <div class="flex h-[60%] border-b border-border">
+                    <div class="w-2/3 bg-surface border-r border-border relative flex flex-col">
+                        <div class="p-2 border-b border-border bg-surface_alt flex justify-between">
+                            <span class="font-bold text-sm uppercase">Digital Twin [RT-SIM-LFR]</span>
+                            <div class="flex gap-2">
+                                <button id="btn-camera-toggle" class="border border-border px-2 text-xs font-bold bg-surface hover:bg-border">TOGGLE CAMERA</button>
+                            </div>
+                        </div>
+                        <div id="three-container" class="flex-1 bg-[#d5d5d5] relative cursor-crosshair"></div>
+                        <!-- Overlay telemetry -->
+                        <div class="absolute top-12 left-4 bg-surface/80 border border-border p-2 min-w-[150px]">
+                            <div class="text-xs font-bold uppercase">Core Temp</div>
+                            <div class="telemetry-value text-xl" id="ui-core-temp">---.-</div>
+                        </div>
+                        <!-- Controls overlay (OD Role only) -->
+                        <div class="absolute bottom-4 right-4 bg-surface/90 border border-border p-2 flex flex-col gap-2 role-gated" data-allowed="OD,AS">
+                            <div class="text-xs font-bold uppercase border-b border-border pb-1">Control Rods</div>
+                            <input type="range" id="rod-control" min="0" max="100" value="50" class="w-32 accent-accent cursor-pointer">
+                            <div class="flex justify-between text-xs font-mono"><span>0%</span><span id="rod-val">50%</span><span>100%</span></div>
+                            <button id="btn-scram" class="mt-2 bg-alarm_p1 text-white font-bold py-1 px-2 hover:bg-red-800 text-xs">MANUAL SCRAM</button>
+                        </div>
+                    </div>
+                    <div class="w-1/3 bg-surface flex flex-col">
+                        <div class="p-2 border-b border-border bg-surface_alt">
+                            <span class="font-bold text-sm uppercase">AI Diagnostic Feed</span>
+                        </div>
+                        <div class="flex-1 p-2 overflow-y-auto log-text" id="ai-feed">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+                <div class="h-[40%] bg-surface p-4 flex flex-col">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold text-sm uppercase">Predictive Telemetry (Ghosting)</span>
+                        <div class="flex gap-4 text-xs font-bold">
+                            <span class="flex items-center gap-1"><div class="w-4 h-1 bg-text_primary"></div> Real-time</span>
+                            <span class="flex items-center gap-1"><div class="w-4 h-1 border-b-2 border-dashed border-text_secondary"></div> Predicted</span>
+                            <span class="flex items-center gap-1"><div class="w-4 h-1 bg-alarm_p1"></div> Trip Limit</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 border border-border relative overflow-hidden" id="chart-container">
+                        <!-- SVG chart injected by JS -->
+                        <svg class="absolute inset-0 w-full h-full" id="predictive-chart" preserveAspectRatio="none" viewBox="0 0 100 100">
+                            <!-- Content injected via JS -->
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MFE: Secondary Circuit (Sensor Table) -->
+            <div id="mfe-secondary" class="mfe-container flex-col h-full w-full p-6">
+                <h2 class="font-bold text-xl uppercase mb-4 border-b border-border pb-2">Secondary Loop Sensors</h2>
+                <div class="bg-surface border border-border flex-1 overflow-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-surface_alt border-b border-border sticky top-0 font-bold uppercase">
+                            <tr>
+                                <th class="p-3">Sensor ID</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Value</th>
+                                <th class="p-3">Unit</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sensor-table-body" class="telemetry-value">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MFE: Safety / Interlocks -->
+            <div id="mfe-safety" class="mfe-container flex-col h-full w-full p-6">
+                <h2 class="font-bold text-xl uppercase mb-4 border-b border-border pb-2">Safety Systems & Interlocks</h2>
+                <div class="grid grid-cols-2 gap-6 h-full">
+                    <div class="bg-surface border border-border p-4 flex flex-col gap-4">
+                        <h3 class="font-bold uppercase bg-surface_alt p-2 border border-border">Trip Logic Status</h3>
+                        <div class="flex items-center justify-between border-b border-border pb-2">
+                            <span>Overspeed Protection</span><div class="w-4 h-4 bg-[#888888]"></div>
+                        </div>
+                        <div class="flex items-center justify-between border-b border-border pb-2">
+                            <span>High Temp Trip</span><div class="w-4 h-4 bg-[#888888]"></div>
+                        </div>
+                        <div class="flex items-center justify-between border-b border-border pb-2">
+                            <span>Low Coolant FLow</span><div class="w-4 h-4 bg-[#888888]"></div>
+                        </div>
+                        <div class="mt-auto">
+                            <button id="btn-depressurize" class="w-full bg-alarm_p2 text-text_primary font-bold p-3 border border-border role-gated hover:bg-yellow-600" data-allowed="OD,AS">EMERGENCY DEPRESSURIZE</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- MFE: AI Copilot -->
+            <div id="mfe-ai" class="mfe-container flex-col h-full w-full p-6">
+                 <h2 class="font-bold text-xl uppercase mb-4 border-b border-border pb-2">Agentic Copilot Inquiry</h2>
+                 <div class="bg-surface border border-border flex-1 flex flex-col">
+                     <div id="ai-chat" class="flex-1 p-4 log-text overflow-y-auto flex flex-col gap-2">
+                         <div class="bg-surface_alt p-2 border border-border self-start">Copilot initialized. Standing by for queries.</div>
+                     </div>
+                     <div class="p-2 border-t border-border flex gap-2">
+                         <input type="text" id="ai-input" class="flex-1 border border-border p-2 font-mono text-sm" placeholder="Ask copilot...">
+                         <button id="btn-ai-send" class="bg-surface_alt border border-border px-4 font-bold hover:bg-border uppercase">Send</button>
+                     </div>
+                 </div>
+            </div>
+
+            <!-- Slide-in Audit Log -->
+            <div id="audit-panel" class="absolute top-0 right-0 w-[400px] h-full bg-surface border-l border-border transform translate-x-full transition-transform duration-300 z-40 flex flex-col shadow-[-5px_0_15px_rgba(0,0,0,0.1)]">
+                <div class="p-4 border-b border-border flex justify-between items-center bg-surface_alt">
+                    <h3 class="font-headline font-bold uppercase">Audit Trail</h3>
+                    <button id="btn-audit-close" class="hover:bg-border p-1"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-2 log-text flex flex-col gap-1" id="audit-log-content">
+                    <!-- Logs injected via JS -->
+                </div>
+                <div class="p-2 border-t border-border">
+                    <button id="btn-export-log" class="w-full bg-surface_alt border border-border p-2 font-bold uppercase hover:bg-border text-xs">Export CSV</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-surface h-8 border-t border-border flex justify-between items-center px-4 font-mono text-[10px] text-text_secondary uppercase">
+        <div>InRebus DAO HMI - Protocol v4.2</div>
+        <div class="flex gap-4">
+            <span id="footer-status">SYSTEM OK</span>
+            <span id="utc-clock">00:00:00:000 UTC</span>
+        </div>
+    </footer>
+
+    <!-- Global Modal -->
+    <div id="modal-container" class="fixed inset-0 bg-[#000000]/60 z-[100] flex items-center justify-center backdrop-blur-sm hidden">
+         <div class="bg-surface border-2 border-border p-4 min-w-[300px] shadow-xl flex flex-col gap-4">
+             <h3 id="modal-title" class="font-bold uppercase border-b border-border pb-1">Modal</h3>
+             <div id="modal-content" class="log-text"></div>
+             <div class="flex justify-end gap-2 mt-2">
+                 <button id="modal-btn-cancel" class="border border-border px-3 py-1 bg-surface_alt hover:bg-border uppercase text-xs font-bold">Cancel</button>
+                 <button id="modal-btn-confirm" class="border border-border px-3 py-1 bg-accent text-surface hover:bg-text_primary uppercase text-xs font-bold">Confirm</button>
+             </div>
+         </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
