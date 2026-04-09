@@ -82,29 +82,54 @@
       <div class="tv text-[11px] text-[#4a5260] tracking-widest">Authentication Required — Select Operator Role</div>
     </div>
     <div class="space-y-2.5">
+      <!-- OL Role Card -->
       <button class="role-btn w-full flex items-center gap-4 p-4 border border-[rgba(255,255,255,.08)] hover:border-[rgba(255,255,255,.25)] hover:bg-[#22262b] transition-all text-left group" data-role="OL">
         <span class="ms material-symbols-outlined text-[#4a5260] group-hover:text-[#e0e4e8] text-2xl transition-colors">visibility</span>
-        <div>
+        <div class="flex-1">
           <div class="tv font-bold text-sm tracking-wider uppercase text-[#e0e4e8]">Local Operator — OL</div>
           <div class="tv text-[11px] text-[#4a5260] mt-0.5">Plant monitoring, alarm management, read-only telemetry</div>
         </div>
+        <div class="flex gap-1 shrink-0">
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(255,255,255,.06)] text-[#4a5260]">R</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(255,32,32,.15)] text-[#3a4050]">U</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(255,32,32,.15)] text-[#3a4050]">C</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(255,32,32,.15)] text-[#3a4050]">D</span>
+        </div>
       </button>
+      <!-- OD Role Card -->
       <button class="role-btn w-full flex items-center gap-4 p-4 border border-[rgba(255,255,255,.08)] hover:border-[rgba(255,255,255,.25)] hover:bg-[#22262b] transition-all text-left group" data-role="OD">
         <span class="ms material-symbols-outlined text-[#4a5260] group-hover:text-[#e0e4e8] text-2xl transition-colors">biotech</span>
-        <div>
+        <div class="flex-1">
           <div class="tv font-bold text-sm tracking-wider uppercase text-[#e0e4e8]">Diagnostic Operator — OD</div>
           <div class="tv text-[11px] text-[#4a5260] mt-0.5">Digital Twin control, simulation management, AI Copilot, SCRAM authority</div>
         </div>
+        <div class="flex gap-1 shrink-0">
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(255,255,255,.06)] text-[#4a5260]">R</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(32,192,96,.25)] text-[#20c060]">U</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(255,32,32,.15)] text-[#3a4050]">C</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(255,32,32,.15)] text-[#3a4050]">D</span>
+        </div>
       </button>
+      <!-- AS Role Card -->
       <button class="role-btn w-full flex items-center gap-4 p-4 border border-[rgba(255,255,255,.08)] hover:border-[rgba(255,255,255,.25)] hover:bg-[#22262b] transition-all text-left group" data-role="AS">
         <span class="ms material-symbols-outlined text-[#4a5260] group-hover:text-[#e0e4e8] text-2xl transition-colors">admin_panel_settings</span>
-        <div>
+        <div class="flex-1">
           <div class="tv font-bold text-sm tracking-wider uppercase text-[#e0e4e8]">System Admin — AS</div>
           <div class="tv text-[11px] text-[#4a5260] mt-0.5">Full configuration, interlock override, audit management, SCRAM authority</div>
+        </div>
+        <div class="flex gap-1 shrink-0">
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(255,255,255,.06)] text-[#4a5260]">R</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(32,192,96,.25)] text-[#20c060]">U</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(32,192,96,.25)] text-[#20c060]">C</span>
+          <span class="tv text-[9px] px-1.5 py-0.5 border border-[rgba(32,192,96,.25)] text-[#20c060]">D</span>
         </div>
       </button>
     </div>
     <div class="text-center tv text-[#4a5260] text-[9px] tracking-widest uppercase mt-8">Protocol v4.2 · AES-512 · IAEA Compliant · Politecnico Physics Model v3.1</div>
+    <!-- RBAC permission info link -->
+    <div class="text-center mt-3">
+      <button id="btn-rbac-info" class="tv text-[9px] text-[#3a4050] hover:text-[#5a6573] uppercase tracking-wider transition-colors">View component permission matrix ›</button>
+    </div>
   </div>
 </div>
 
@@ -242,6 +267,10 @@
       </button>
       <button class="nav-s w-full flex items-center gap-3 px-4 py-2.5 tv text-[11px] text-[#4a5260] hover:text-[#7a8590] hover:bg-[#22262b] text-left border-r-4 border-transparent" data-panel="panel-diagnostics">
         <span class="ms material-symbols-outlined text-[15px]">analytics</span> Diagnostics
+      </button>
+      <!-- CMP-23: Cybersecurity nav — AS only, rendered by ComponentFactory -->
+      <button id="nav-cyber" class="nav-s w-full flex items-center gap-3 px-4 py-2.5 tv text-[11px] text-[#4a5260] hover:text-[#7a8590] hover:bg-[#22262b] text-left border-r-4 border-transparent" data-panel="panel-cyber" style="display:none">
+        <span class="ms material-symbols-outlined text-[15px]">shield</span> Cybersecurity
       </button>
     </nav>
 
@@ -590,6 +619,34 @@
       </div>
     </div><!-- /panel-diagnostics -->
 
+    <!-- ───────── PANEL: CYBERSECURITY (AS only — CMP-23) ───────── -->
+    <div id="panel-cyber" class="panel">
+      <div class="flex-shrink-0 px-5 py-3 border-b border-[rgba(255,255,255,.08)] bg-[#1a1d21] flex items-center justify-between">
+        <div>
+          <h2 class="tv font-bold text-[11px] tracking-widest uppercase">Cybersecurity Monitor — AS Restricted</h2>
+          <p class="tv text-[10px] text-[#4a5260] mt-0.5">IEC 62443 · AES-512 · Network topology · Intrusion detection</p>
+        </div>
+        <div class="tv text-[9px] px-2 py-1 border border-[#20c060]/30 bg-[#20c060]/5 text-[#20c060] font-bold uppercase tracking-wider">SECURE</div>
+      </div>
+      <div class="flex flex-1 overflow-hidden">
+        <!-- Node Status Grid -->
+        <div class="flex-1 p-5 border-r border-[rgba(255,255,255,.08)] overflow-y-auto">
+          <div class="tv text-[9px] text-[#4a5260] uppercase tracking-widest mb-4">Network Node Status — DAO Mesh</div>
+          <div id="cyber-nodes" class="space-y-2"></div>
+        </div>
+        <!-- Intrusion Log -->
+        <div class="flex-1 p-5 border-r border-[rgba(255,255,255,.08)] overflow-y-auto">
+          <div class="tv text-[9px] text-[#4a5260] uppercase tracking-widest mb-4">Intrusion Detection Log</div>
+          <div id="cyber-log" class="space-y-1 log text-[10px]"></div>
+        </div>
+        <!-- Encryption Status -->
+        <div class="w-60 flex-shrink-0 p-5">
+          <div class="tv text-[9px] text-[#4a5260] uppercase tracking-widest mb-4">Encryption Status</div>
+          <div id="cyber-enc" class="space-y-2"></div>
+        </div>
+      </div>
+    </div><!-- /panel-cyber -->
+
   </main>
 </div>
 
@@ -603,6 +660,8 @@
     <button id="footer-protocol" class="hover:text-[#7a8590] transition-colors">Protocol v4.2</button>
     <button id="footer-logs" class="hover:text-[#7a8590] transition-colors">Terminal Logs</button>
     <button id="footer-telemetry" class="hover:text-[#7a8590] transition-colors">Telemetry Node 08</button>
+    <!-- CMP-23 cybersec inline badge (AS only) rendered by factory -->
+    <div id="cyber-panel"></div>
   </div>
   <div class="flex items-center gap-5 tv text-[9px] text-[#4a5260] uppercase tracking-widest">
     <span class="flex items-center gap-1.5"><div class="w-1.5 h-1.5 rounded-full bg-[#20c060] animate-pulse"></div>COMMS: NOMINAL</span>
@@ -654,6 +713,8 @@
   </div>
 </div>
 
+<script src="component-registry.js"></script>
+<script src="rbac-factory.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

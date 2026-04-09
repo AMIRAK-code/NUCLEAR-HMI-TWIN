@@ -454,6 +454,7 @@ function render(s) {
   renderAnomalyList(s);
   renderCopilotSteps(s);
   renderSystemHealth(s);
+  renderCyberPanel(s);
 }
 
 function renderRole(s) {
@@ -552,6 +553,108 @@ function renderSystemHealth(s) {
   } else {
     sl.textContent = 'SYSTEM READY';  sl.style.color = '#7a8590';
     sd.style.background = '#20c060'; sd.style.animation = '';
+  }
+}
+
+// ─── CMP-23: CYBERSECURITY PANEL (AS only) ─────────────────────────
+// IEC 62443 / ISA-101 compliant — rendered only for System Admin role
+function renderCyberPanel(s) {
+  // Panel is only visible to AS — skip render entirely for other roles
+  if (s.role !== 'AS') return;
+
+  // ── Node Status ──────────────────────────────────────────────────
+  const nodesEl = document.getElementById('cyber-nodes');
+  if (nodesEl) {
+    const nodes = [
+      { id:'NODE-ALPHA',   label:'Reactor Core / Primary Loop',    status:'ONLINE',  latency:'4ms',  load:12 },
+      { id:'NODE-BETA',    label:'Primary Pumps A/B',              status:'ONLINE',  latency:'3ms',  load:8  },
+      { id:'NODE-GAMMA',   label:'Emergency Relief Valve',         status:'OFFLINE', latency:'—',    load:0  },
+      { id:'NODE-DELTA',   label:'Steam Generator Loop',           status:'ONLINE',  latency:'5ms',  load:15 },
+      { id:'NODE-EPSILON', label:'Turbine / Generator',            status:'ONLINE',  latency:'6ms',  load:22 },
+      { id:'NODE-ZETA',    label:'Grid Interface',                 status:'ONLINE',  latency:'9ms',  load:18 },
+      { id:'NODE-ETA',     label:'Politecnico AI Physics Core',    status:'ONLINE',  latency:'12ms', load:41 },
+      { id:'NODE-THETA',   label:'Audit & Compliance Logger',      status:'ONLINE',  latency:'2ms',  load:3  },
+    ];
+    // Jitter load values slightly for live feel
+    nodesEl.innerHTML = nodes.map(n => {
+      const isOnline = n.status === 'ONLINE';
+      const col      = isOnline ? '#20c060' : '#ff2020';
+      const loadVal  = isOnline ? Math.max(1, n.load + Math.floor((Math.random()-.5)*5)) : 0;
+      const loadBar  = isOnline ? `
+        <div style="width:80px;height:3px;background:#0f1114;margin-top:4px;">
+          <div style="width:${loadVal}%;height:100%;background:${loadVal>70?'#ffd020':'#5a6573'};
+                      transition:width .8s ease;"></div>
+        </div>` : '';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;
+                           padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+        <div>
+          <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
+                      color:#7a8590;text-transform:uppercase;">${n.id}</div>
+          <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5260;
+                      margin-top:2px;">${n.label}</div>
+          ${loadBar}
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:12px;">
+          <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
+                      color:${col};">${n.status}</div>
+          <div style="font-family:'Courier New',monospace;font-size:9px;color:#4a5260;
+                      margin-top:2px;">${n.latency} · ${loadVal > 0 ? loadVal+'% CPU' : '—'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Intrusion Log ─────────────────────────────────────────────────
+  const logEl = document.getElementById('cyber-log');
+  if (logEl && !logEl.dataset.seeded) {
+    // Seed with static nominal log entries once
+    logEl.dataset.seeded = '1';
+    const entries = [
+      { ts:'07:12:04', sev:'INFO',  msg:'TLS handshake verified — NODE-ETA ↔ HMI' },
+      { ts:'07:12:01', sev:'INFO',  msg:'Certificate rotation — AES-512 keys refreshed' },
+      { ts:'07:08:44', sev:'INFO',  msg:'Auth token issued — Role: AS · Session α78c' },
+      { ts:'07:08:44', sev:'INFO',  msg:'Auth token issued — Role: OD · Session b12f' },
+      { ts:'07:05:11', sev:'WARN',  msg:'NODE-GAMMA offline — last heartbeat 00:05:11 ago' },
+      { ts:'07:01:00', sev:'INFO',  msg:'Firewall ruleset v4.2 applied — 2,048 rules active' },
+      { ts:'06:58:33', sev:'INFO',  msg:'IDS scan complete — no anomalies detected' },
+      { ts:'06:55:00', sev:'INFO',  msg:'System boot — CORE-SENTINEL v4.2 · IAEA compliant' },
+    ];
+    logEl.innerHTML = entries.map(e => {
+      const col = e.sev === 'WARN' ? '#ffd020' : '#4a5260';
+      return `<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+        <span style="font-family:'Courier New',monospace;font-size:9px;color:#3a4050;flex-shrink:0;">${e.ts}</span>
+        <span style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
+                     color:${col};flex-shrink:0;min-width:30px;">${e.sev}</span>
+        <span style="font-family:'Courier New',monospace;font-size:9px;color:#5a6573;">${e.msg}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Encryption Status ─────────────────────────────────────────────
+  const encEl = document.getElementById('cyber-enc');
+  if (encEl && !encEl.dataset.seeded) {
+    encEl.dataset.seeded = '1';
+    const suites = [
+      { label:'Transport',      val:'TLS 1.3',     status:'ACTIVE' },
+      { label:'Data at Rest',   val:'AES-512',     status:'ACTIVE' },
+      { label:'Key Exchange',   val:'ECDH P-521',  status:'ACTIVE' },
+      { label:'Integrity',      val:'SHA-3-512',   status:'ACTIVE' },
+      { label:'Auth',           val:'JWT RS-4096', status:'ACTIVE' },
+      { label:'IDS Engine',     val:'Snort v3.1',  status:'ACTIVE' },
+      { label:'Cert Expiry',    val:'2027-01-01',  status:'VALID'  },
+      { label:'Last Key Rot.',  val:ts(),           status:'OK'     },
+    ];
+    encEl.innerHTML = suites.map(suite => `
+      <div style="display:flex;justify-content:space-between;align-items:center;
+                  padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+        <div style="font-family:'Courier New',monospace;font-size:9px;color:#4a5260;">${suite.label}</div>
+        <div style="text-align:right;">
+          <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;color:#7a8590;">
+            ${suite.val}</div>
+          <div style="font-family:'Courier New',monospace;font-size:8px;color:#20c060;
+                      text-transform:uppercase;">${suite.status}</div>
+        </div>
+      </div>`).join('');
   }
 }
 
@@ -933,6 +1036,47 @@ function bindAll() {
       document.getElementById('role-overlay').style.display = 'none';
       const ts2 = document.getElementById('ai-init-ts');
       if (ts2) ts2.textContent = ts();
+
+      // ── RBAC: activate component factory for this role ──────────
+      if (window.RBACContext) {
+        RBACContext.setRole(role);
+        // Show Cybersecurity nav item only for AS
+        const navCyber = document.getElementById('nav-cyber');
+        if (navCyber) navCyber.style.display = role === 'AS' ? '' : 'none';
+      }
+    });
+  });
+
+  // RBAC Permission Matrix info button (on login screen)
+  document.getElementById('btn-rbac-info')?.addEventListener('click', () => {
+    if (!window.renderRoleSummary) return;
+    showModal({
+      icon: 'manage_accounts',
+      title: 'Component Permission Matrix — All Roles',
+      content: `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+          <div>
+            <div style="font-family:'Courier New',monospace;font-size:10px;
+                        color:#e0e4e8;font-weight:700;margin-bottom:8px;
+                        border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px;">
+              LOCAL OPERATOR — OL</div>
+            ${renderRoleSummary('OL')}
+          </div>
+          <div>
+            <div style="font-family:'Courier New',monospace;font-size:10px;
+                        color:#e0e4e8;font-weight:700;margin-bottom:8px;
+                        border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px;">
+              DIAGNOSTIC OPERATOR — OD</div>
+            ${renderRoleSummary('OD')}
+          </div>
+          <div>
+            <div style="font-family:'Courier New',monospace;font-size:10px;
+                        color:#e0e4e8;font-weight:700;margin-bottom:8px;
+                        border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px;">
+              SYSTEM ADMIN — AS</div>
+            ${renderRoleSummary('AS')}
+          </div>
+        </div>`,
     });
   });
 
@@ -958,8 +1102,33 @@ function bindAll() {
     dispatch('LOG',{msg:'Audit log exported to CSV'});
   });
 
-  // ── DEMO BUTTON ──────────────────────────────────────────────────
+  // ── DEMO BUTTON — CMP-22: OL=X, OD=R/U, AS=C/R/U/D ─────────────
   document.getElementById('btn-demo').addEventListener('click', () => {
+    // RBAC guard: OL cannot access emergency scenario simulator
+    if (S.role === 'OL') {
+      showModal({
+        icon: 'lock',
+        title: 'Access Denied — Emergency Simulator',
+        content: `<div class="tv text-sm space-y-3">
+          <div style="color:#ff2020;font-weight:700;font-size:12px;padding:10px;
+                      border:1px solid rgba(255,32,32,.2);background:rgba(255,32,32,.05);">
+            PERMISSION DENIED — CMP-22
+          </div>
+          <p style="color:#7a8590;font-size:11px;">
+            The Emergency Scenario Simulator requires <strong style="color:#e0e4e8;">Diagnostic Operator (OD)</strong>
+            or <strong style="color:#e0e4e8;">System Admin (AS)</strong> role.<br/>
+            Current role: <strong style="color:#ffd020;">OL</strong> — Read-only monitoring only.
+          </p>
+          <div style="font-family:'Courier New',monospace;font-size:9px;color:#4a5260;
+                      border:1px solid rgba(255,255,255,.08);padding:8px;">
+            CMP-22 Access Matrix: OL=<span style="color:#3a4050;">X</span> ·
+            OD=<span style="color:#20c060;">R/U</span> ·
+            AS=<span style="color:#20c060;">C/R/U/D</span>
+          </div>
+        </div>`,
+      });
+      return;
+    }
     showModal({
       icon: 'science',
       title: 'Emergency Scenario Simulator',
@@ -1083,7 +1252,14 @@ function bindAll() {
       onConfirm: () => {
         ScenarioEngine.stop();
         dispatch('LOG',{msg:`Session terminated. Role: ${S.role}`});
-        setTimeout(()=>{ document.getElementById('role-overlay').style.display='flex'; S=mkModel(); scheduleRender(); },300);
+        setTimeout(()=>{
+          document.getElementById('role-overlay').style.display='flex';
+          // Clear RBAC context on logout
+          if (window.RBACContext) RBACContext.clear();
+          const navCyber = document.getElementById('nav-cyber');
+          if (navCyber) navCyber.style.display = 'none';
+          S=mkModel(); scheduleRender();
+        },300);
       }
     });
   });
@@ -1106,13 +1282,9 @@ function bindAll() {
     });
   });
 
-  // ── Safety: SCRAM (double-click required) ────────────────────────
+  // ── Safety: SCRAM (double-click required, CMP-09) ────────────────────────
   let scramN=0, scramT=null;
-  document.getElementById('btn-scram').addEventListener('click', () => {
-    if (S.role!=='OD' && S.role!=='AS') {
-      showModal({icon:'lock',title:'Access Denied',content:'<p class="tv text-[#ff2020] font-bold">SCRAM requires Diagnostic Operator (OD) or System Admin (AS) role.</p>'});
-      return;
-    }
+  bindGuardedButton('btn-scram', 'CMP-09', 'U', () => {
     if (S.scramActive) return;
     scramN++;
     if (scramT) clearTimeout(scramT);
@@ -1137,13 +1309,10 @@ function bindAll() {
         }
       });
     }
-  });
+  }, showModal);
 
-  // ── Safety: Emergency Depressurize ──────────────────────────────
-  document.getElementById('btn-depressurize').addEventListener('click', () => {
-    if (S.role!=='OD' && S.role!=='AS') {
-      showModal({icon:'lock',title:'Access Denied',content:'<p class="tv text-[#ffd020]">Requires OD or AS role.</p>'}); return;
-    }
+  // ── Safety: Emergency Depressurize (CMP-12) ──────────────────────────────
+  bindGuardedButton('btn-depressurize', 'CMP-12', 'U', () => {
     showModal({
       icon:'warning', title:'Emergency Depressurize',
       content:'<p class="tv text-sm text-[#ffd020]">Opening Emergency Relief Valve ERV-01. This will depressurize the secondary circuit. Continue?</p>',
@@ -1154,20 +1323,17 @@ function bindAll() {
         addAIMessage('Depressurization confirmed. ERV-01 open. Secondary pressure reducing. Monitor primary pressure ΔP.');
       }
     });
-  });
+  }, showModal);
 
-  // ── Safety: Reset Interlocks ─────────────────────────────────────
-  document.getElementById('btn-reset-locks').addEventListener('click', () => {
-    if (S.role!=='AS') {
-      showModal({icon:'lock',title:'Access Denied',content:'<p class="tv text-[#7a8590]">Interlock reset requires System Admin (AS) role only.</p>'}); return;
-    }
+  // ── Safety: Reset Interlocks (CMP-13) ─────────────────────────────────────
+  bindGuardedButton('btn-reset-locks', 'CMP-13', 'U', () => {
     showModal({
       icon:'settings', title:'Reset Protection Interlocks',
       content:'<p class="tv text-sm text-[#7a8590]">Reset all non-SCRAM interlocks to ARMED. Perform only after root cause confirmed.</p>',
       primary:'RESET INTERLOCKS', secondary:'CANCEL',
       onConfirm: ()=>dispatch('RESET_INTERLOCKS'),
     });
-  });
+  }, showModal);
 
   // ── SIM RUN ──────────────────────────────────────────────────────
   document.getElementById('btn-run-sim')?.addEventListener('click', () => {
@@ -1200,22 +1366,22 @@ function bindAll() {
   });
   document.getElementById('btn-ai-query').addEventListener('click', handleAIQuery);
   document.getElementById('ai-query-input').addEventListener('keydown', e=>{ if(e.key==='Enter') handleAIQuery(); });
-  document.getElementById('btn-auto-pilot').addEventListener('click', ()=>{
+  bindGuardedButton('btn-auto-pilot', 'CMP-17', 'U', () => {
     dispatch('TOGGLE_AUTOPILOT');
     const btn=document.getElementById('btn-auto-pilot');
     if(S.autoPilot){ btn.textContent='⬛ Disable Auto-Pilot'; btn.style.color='#20c060'; btn.style.borderColor='#20c06033'; }
     else           { btn.textContent='Enable Auto-Pilot Mode'; btn.style.color=''; btn.style.borderColor=''; }
-  });
+  }, showModal);
 
   // ── Diagnostics ──────────────────────────────────────────────────
   document.getElementById('diag-search').addEventListener('input', ()=>renderDiagnostics(S));
   document.getElementById('btn-diag-refresh').addEventListener('click', ()=>{ dispatch('LOG',{msg:'Diagnostics refreshed'}); renderDiagnostics(S); });
-  document.getElementById('btn-diag-export').addEventListener('click', ()=>{
+  bindGuardedButton('btn-diag-export', 'CMP-19', 'R', () => {
     const rows=[['Tag','Description','System','Value','Unit','Trip','Status']];
     Object.values(S.sensors).forEach(s=>rows.push([s.tag,s.label,s.sys,DAO.fmt(s),s.u,s.trip,DAO.status(s).toUpperCase()]));
     dlFile(rows.map(r=>r.join(',')).join('\n'),`sensors-${Date.now()}.csv`,'text/csv');
     dispatch('LOG',{msg:'Sensor data exported to CSV'});
-  });
+  }, showModal);
 
   // ── Footer ───────────────────────────────────────────────────────
   document.getElementById('footer-protocol').addEventListener('click', ()=>{
