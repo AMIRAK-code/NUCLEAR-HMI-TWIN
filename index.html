@@ -51,6 +51,8 @@
   .pid-pipe{stroke:#7a8590;stroke-width:3;fill:none}
   .pid-hot{stroke:#ff8020;stroke-width:3;fill:none;opacity:.85}
   .pid-box{fill:#2a2f36;stroke:#5a6573;stroke-width:1.5}
+  .pid-flow{transition:opacity .4s ease,stroke-width .4s ease,stroke .4s ease}
+  .pid-node{transition:fill .4s ease,opacity .4s ease}
 
   /* Sensor table */
   .sr:hover{background:#22262b}
@@ -450,7 +452,7 @@
         <div class="flex-1 p-5 border-r border-[rgba(255,255,255,.08)] overflow-hidden flex flex-col">
           <div class="tv text-[9px] text-[#4a5260] uppercase tracking-widest mb-3">P&amp;ID Schematic — Secondary Loop</div>
           <div class="flex-1 bg-[#0f1114] border border-[rgba(255,255,255,.06)] relative">
-            <svg class="w-full h-full" viewBox="0 0 660 390" preserveAspectRatio="xMidYMid meet">
+            <svg id="pid-svg" class="w-full h-full" viewBox="0 0 660 390" preserveAspectRatio="xMidYMid meet">
               <rect x="40" y="115" width="95" height="145" class="pid-box"/>
               <text x="87" y="182" text-anchor="middle" font-family="Courier New" font-size="11" fill="#7a8590">IHX</text>
               <text x="87" y="197" text-anchor="middle" font-family="Courier New" font-size="10" fill="#4a5260">03-A</text>
@@ -461,31 +463,33 @@
               <text x="493" y="197" text-anchor="middle" font-family="Courier New" font-size="10" fill="#7a8590">TURB</text>
               <rect x="450" y="315" width="90" height="55" class="pid-box"/>
               <text x="495" y="348" text-anchor="middle" font-family="Courier New" font-size="10" fill="#7a8590">COND</text>
-              <circle cx="185" cy="295" r="23" class="pid-box"/>
+              <circle id="sec-pump-b" cx="185" cy="295" r="23" class="pid-box"/>
               <text x="185" y="299" text-anchor="middle" font-family="Courier New" font-size="9" fill="#7a8590">P-B</text>
               <line x1="135" y1="145" x2="245" y2="145" class="pid-hot"/>
               <text x="190" y="136" text-anchor="middle" font-family="Courier New" font-size="9" fill="#ff8020">HOT →</text>
               <line x1="135" y1="225" x2="245" y2="225" class="pid-pipe"/>
               <text x="190" y="245" text-anchor="middle" font-family="Courier New" font-size="9" fill="#7a8590">← COLD</text>
-              <line x1="340" y1="155" x2="450" y2="168" stroke="#ff8020" stroke-width="2.5" fill="none" opacity=".8" stroke-dasharray="9,5"/>
+              <line id="sec-line-steam" x1="340" y1="155" x2="450" y2="168" stroke="#ff8020" stroke-width="2.5" fill="none" opacity=".8" stroke-dasharray="9,5" class="pid-flow"/>
               <text x="395" y="148" text-anchor="middle" font-family="Courier New" font-size="9" fill="#ff8020">STEAM →</text>
-              <line x1="495" y1="225" x2="495" y2="315" class="pid-pipe"/>
-              <line x1="450" y1="342" x2="208" y2="342" class="pid-pipe"/>
+              <line id="sec-line-condense" x1="495" y1="225" x2="495" y2="315" class="pid-pipe pid-flow"/>
+              <line id="sec-line-return" x1="450" y1="342" x2="208" y2="342" class="pid-pipe pid-flow"/>
               <line x1="185" y1="342" x2="185" y2="318" class="pid-pipe"/>
               <line x1="185" y1="272" x2="185" y2="225" class="pid-pipe"/>
               <line x1="185" y1="225" x2="245" y2="225" class="pid-pipe"/>
-              <circle cx="190" cy="145" r="5" fill="#ff8020" opacity=".9"/>
-              <circle cx="190" cy="225" r="5" fill="#7a8590" opacity=".9"/>
-              <circle cx="348" cy="155" r="5" fill="#ff2020" opacity=".9"/>
-              <text x="42" y="113" font-family="Courier New" font-size="9" fill="#ff8020">480°C →</text>
-              <text x="42" y="271" font-family="Courier New" font-size="9" fill="#7a8590">← 380°C</text>
-              <text x="247" y="88" font-family="Courier New" font-size="9" fill="#ff8020">STEAM 165 bar</text>
+              <circle id="sec-hot-node" cx="190" cy="145" r="5" fill="#ff8020" opacity=".9" class="pid-node"/>
+              <circle id="sec-cold-node" cx="190" cy="225" r="5" fill="#7a8590" opacity=".9" class="pid-node"/>
+              <circle id="sec-steam-node" cx="348" cy="155" r="5" fill="#ff2020" opacity=".9" class="pid-node"/>
+              <text id="sec-hot-temp-label" x="42" y="113" font-family="Courier New" font-size="9" fill="#ff8020">480°C →</text>
+              <text id="sec-cold-temp-label" x="42" y="271" font-family="Courier New" font-size="9" fill="#7a8590">← 380°C</text>
+              <text id="sec-steam-pressure-label" x="247" y="88" font-family="Courier New" font-size="9" fill="#ff8020">STEAM 165 bar</text>
             </svg>
           </div>
         </div>
         <div class="p-4 overflow-y-auto flex-shrink-0" style="width:270px">
           <div class="tv text-[9px] text-[#4a5260] uppercase tracking-widest mb-3">Loop Parameters</div>
           <div id="sec-stats"></div>
+          <div class="tv text-[9px] text-[#4a5260] uppercase tracking-widest mt-4 mb-2">Derived Performance</div>
+          <div id="sec-kpis"></div>
         </div>
       </div>
     </div><!-- /panel-secondary -->
