@@ -446,10 +446,10 @@
         </div>
         <div id="sec-status" class="tv text-[9px] px-2 py-1 border border-[#20c060]/30 bg-[#20c060]/5 text-[#20c060] font-bold uppercase tracking-wider">LOOP STATUS: NOMINAL</div>
       </div>
-      <div class="flex flex-1 overflow-hidden">
-        <div class="flex-1 p-5 border-r border-[rgba(255,255,255,.08)] overflow-hidden flex flex-col">
+      <div class="flex flex-1 overflow-y-auto">
+        <div class="flex-1 p-5 border-r border-[rgba(255,255,255,.08)] overflow-y-auto flex flex-col">
           <div class="tv text-[9px] text-[#4a5260] uppercase tracking-widest mb-3">P&amp;ID Schematic — Secondary Loop</div>
-          <div class="flex-1 bg-[#0f1114] border border-[rgba(255,255,255,.06)] relative">
+          <div class="flex-1 bg-[#0f1114] border border-[rgba(255,255,255,.06)] relative min-h-[500px]">
             <svg class="w-full h-full" viewBox="0 0 660 390" preserveAspectRatio="xMidYMid meet">
               <rect x="40" y="115" width="95" height="145" class="pid-box"/>
               <text x="87" y="182" text-anchor="middle" font-family="Courier New" font-size="11" fill="#7a8590">IHX</text>
@@ -477,9 +477,9 @@
               <circle cx="190" cy="145" r="5" fill="#ff8020" opacity=".9"/>
               <circle cx="190" cy="225" r="5" fill="#7a8590" opacity=".9"/>
               <circle cx="348" cy="155" r="5" fill="#ff2020" opacity=".9"/>
-              <text x="42" y="113" font-family="Courier New" font-size="9" fill="#ff8020">480°C →</text>
-              <text x="42" y="271" font-family="Courier New" font-size="9" fill="#7a8590">← 380°C</text>
-              <text x="247" y="88" font-family="Courier New" font-size="9" fill="#ff8020">STEAM 165 bar</text>
+              <text id="svg-sec-hot" x="42" y="113" font-family="Courier New" font-size="9" fill="#ff8020">480°C →</text>
+              <text id="svg-sec-cold" x="42" y="271" font-family="Courier New" font-size="9" fill="#7a8590">← 380°C</text>
+              <text id="svg-sec-steam" x="247" y="88" font-family="Courier New" font-size="9" fill="#ff8020">STEAM 165 bar</text>
             </svg>
           </div>
         </div>

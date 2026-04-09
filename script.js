@@ -764,8 +764,32 @@ function renderSecondaryStats(s) {
       <div class="w-full h-1 bg-[#22262b] mt-2">
         <div class="h-full transition-all duration-1000" style="width:${Math.min(100,Math.max(0,st.pct)).toFixed(0)}%;background:${isAlarm?'#ff2020':st.col}"></div>
       </div>
+      </div>
     </div>`;
   });
+
+  // Dynamically update Secondary loop status badge
+  const secStatus = document.getElementById('sec-status');
+  if (secStatus) {
+    const isSecAlarm = ['SG_INLET','STEAM_PRESS','TURBINE_RPM','GRID_OUT','PUMP_B','SEC_FLOW']
+      .some(k => ss[k] && DAO.status(ss[k]) === 'alarm');
+
+    if (s.scramActive) {
+      secStatus.textContent = 'LOOP STATUS: SCRAM ISOLATION';
+      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#ff2020]/30 bg-[#ff2020]/5 text-[#ff2020] font-bold uppercase tracking-wider';
+    } else if (isSecAlarm) {
+      secStatus.textContent = 'LOOP STATUS: ALARM DEVIATION';
+      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#ff8020]/30 bg-[#ff8020]/5 text-[#ff8020] font-bold uppercase tracking-wider blink';
+    } else {
+      secStatus.textContent = 'LOOP STATUS: NOMINAL';
+      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#20c060]/30 bg-[#20c060]/5 text-[#20c060] font-bold uppercase tracking-wider';
+    }
+  }
+
+  // Update SVG P&ID text dynamically
+  if (ss.SG_INLET) setText('svg-sec-hot', `${DAO.fmt(ss.SG_INLET)}°C →`);
+  if (ss.SG_INLET) setText('svg-sec-cold', `← ${(ss.SG_INLET.v - 100).toFixed(1)}°C`);
+  if (ss.STEAM_PRESS) setText('svg-sec-steam', `STEAM ${DAO.fmt(ss.STEAM_PRESS)} bar`);
 }
 
 function renderDiagnostics(s) {
