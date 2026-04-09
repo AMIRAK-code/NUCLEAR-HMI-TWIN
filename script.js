@@ -62,25 +62,89 @@ const DAO = {
 
     if (core && sg && steam && turb && grid && flow && pumpB) {
       const n = this.NOMINAL;
-      const thermalDrive = (core.v - n.CORE_TEMP) / 180;
-      const pumpDrive = (pumpB.v - n.PUMP_B) / 520;
+      const SEC_COUPLING = {
+        THERMAL_DRIVE_DIV: 180,
+        PUMP_DRIVE_DIV: 520,
+        FLOW_PUMP_GAIN: 260,
+        FLOW_SCRAM_REDUCTION: 1200,
+        FLOW_BLEND_PREV: 0.8,
+        FLOW_BLEND_TARGET: 0.2,
+        FLOW_MIN_MARGIN: 0.85,
+        FLOW_MAX_MARGIN: 0.99,
+        SG_THERMAL_GAIN: 9,
+        SG_FLOW_DAMPING_DIV: 520,
+        SG_SCRAM_REDUCTION: 65,
+        SG_BLEND_PREV: 0.84,
+        SG_BLEND_TARGET: 0.16,
+        SG_MIN_MARGIN: 0.9,
+        SG_MAX_MARGIN: 0.99,
+        STEAM_THERMAL_GAIN: 5.5,
+        STEAM_FLOW_GAIN_DIV: 240,
+        STEAM_SCRAM_REDUCTION: 35,
+        STEAM_BLEND_PREV: 0.82,
+        STEAM_BLEND_TARGET: 0.18,
+        STEAM_MIN_MARGIN: 0.88,
+        STEAM_MAX_MARGIN: 0.995,
+        TURB_STEAM_GAIN: 20,
+        TURB_PUMP_GAIN: 45,
+        TURB_SCRAM_REDUCTION: 2100,
+        TURB_BLEND_PREV: 0.8,
+        TURB_BLEND_TARGET: 0.2,
+        TURB_MIN_MARGIN: 0.75,
+        TURB_MAX_MARGIN: 0.995,
+        GRID_TURB_GAIN: 0.12,
+        GRID_SCRAM_REDUCTION: 340,
+        GRID_BLEND_PREV: 0.82,
+        GRID_BLEND_TARGET: 0.18,
+        GRID_MAX_MARGIN: 0.995,
+        PUMP_SCRAM_DECAY: 38,
+        PUMP_SCRAM_MIN: 1600,
+        PUMP_SCRAM_MAX_MARGIN: 0.99,
+      };
 
-      const flowTarget = n.SEC_FLOW + pumpDrive * 260 - (scramActive ? 1200 : 0);
-      flow.v = clamp(flow.v * 0.8 + flowTarget * 0.2, flow.low * 0.85, flow.trip * 0.99);
+      const thermalDrive = (core.v - n.CORE_TEMP) / SEC_COUPLING.THERMAL_DRIVE_DIV;
+      const pumpDrive = (pumpB.v - n.PUMP_B) / SEC_COUPLING.PUMP_DRIVE_DIV;
 
-      const sgTarget = n.SG_INLET + thermalDrive * 9 - (flow.v - n.SEC_FLOW) / 520 - (scramActive ? 65 : 0);
-      sg.v = clamp(sg.v * 0.84 + sgTarget * 0.16, sg.low * 0.9, sg.trip * 0.99);
+      const flowTarget = n.SEC_FLOW + pumpDrive * SEC_COUPLING.FLOW_PUMP_GAIN - (scramActive ? SEC_COUPLING.FLOW_SCRAM_REDUCTION : 0);
+      flow.v = clamp(
+        flow.v * SEC_COUPLING.FLOW_BLEND_PREV + flowTarget * SEC_COUPLING.FLOW_BLEND_TARGET,
+        flow.low * SEC_COUPLING.FLOW_MIN_MARGIN,
+        flow.trip * SEC_COUPLING.FLOW_MAX_MARGIN
+      );
 
-      const steamTarget = n.STEAM_PRESS + thermalDrive * 5.5 + (flow.v - n.SEC_FLOW) / 240 - (scramActive ? 35 : 0);
-      steam.v = clamp(steam.v * 0.82 + steamTarget * 0.18, steam.low * 0.88, steam.trip * 0.995);
+      const sgTarget = n.SG_INLET + thermalDrive * SEC_COUPLING.SG_THERMAL_GAIN - (flow.v - n.SEC_FLOW) / SEC_COUPLING.SG_FLOW_DAMPING_DIV - (scramActive ? SEC_COUPLING.SG_SCRAM_REDUCTION : 0);
+      sg.v = clamp(
+        sg.v * SEC_COUPLING.SG_BLEND_PREV + sgTarget * SEC_COUPLING.SG_BLEND_TARGET,
+        sg.low * SEC_COUPLING.SG_MIN_MARGIN,
+        sg.trip * SEC_COUPLING.SG_MAX_MARGIN
+      );
 
-      const turbTarget = n.TURBINE_RPM + (steam.v - n.STEAM_PRESS) * 20 + pumpDrive * 45 - (scramActive ? 2100 : 0);
-      turb.v = clamp(turb.v * 0.8 + turbTarget * 0.2, turb.low * 0.75, turb.trip * 0.995);
+      const steamTarget = n.STEAM_PRESS + thermalDrive * SEC_COUPLING.STEAM_THERMAL_GAIN + (flow.v - n.SEC_FLOW) / SEC_COUPLING.STEAM_FLOW_GAIN_DIV - (scramActive ? SEC_COUPLING.STEAM_SCRAM_REDUCTION : 0);
+      steam.v = clamp(
+        steam.v * SEC_COUPLING.STEAM_BLEND_PREV + steamTarget * SEC_COUPLING.STEAM_BLEND_TARGET,
+        steam.low * SEC_COUPLING.STEAM_MIN_MARGIN,
+        steam.trip * SEC_COUPLING.STEAM_MAX_MARGIN
+      );
 
-      const gridTarget = n.GRID_OUT + (turb.v - n.TURBINE_RPM) * 0.12 - (scramActive ? 340 : 0);
-      grid.v = clamp(grid.v * 0.82 + gridTarget * 0.18, 0, grid.trip * 0.995);
+      const turbTarget = n.TURBINE_RPM + (steam.v - n.STEAM_PRESS) * SEC_COUPLING.TURB_STEAM_GAIN + pumpDrive * SEC_COUPLING.TURB_PUMP_GAIN - (scramActive ? SEC_COUPLING.TURB_SCRAM_REDUCTION : 0);
+      turb.v = clamp(
+        turb.v * SEC_COUPLING.TURB_BLEND_PREV + turbTarget * SEC_COUPLING.TURB_BLEND_TARGET,
+        turb.low * SEC_COUPLING.TURB_MIN_MARGIN,
+        turb.trip * SEC_COUPLING.TURB_MAX_MARGIN
+      );
 
-      if (scramActive) pumpB.v = clamp(pumpB.v - 38, 1600, pumpB.trip * 0.99);
+      const gridTarget = n.GRID_OUT + (turb.v - n.TURBINE_RPM) * SEC_COUPLING.GRID_TURB_GAIN - (scramActive ? SEC_COUPLING.GRID_SCRAM_REDUCTION : 0);
+      grid.v = clamp(
+        grid.v * SEC_COUPLING.GRID_BLEND_PREV + gridTarget * SEC_COUPLING.GRID_BLEND_TARGET,
+        0,
+        grid.trip * SEC_COUPLING.GRID_MAX_MARGIN
+      );
+
+      if (scramActive) pumpB.v = clamp(
+        pumpB.v - SEC_COUPLING.PUMP_SCRAM_DECAY,
+        SEC_COUPLING.PUMP_SCRAM_MIN,
+        pumpB.trip * SEC_COUPLING.PUMP_SCRAM_MAX_MARGIN
+      );
     }
   },
 
@@ -802,6 +866,31 @@ function renderSecondaryStats(s) {
 }
 
 function renderSecondaryLoop(s) {
+  const COLOR_CRITICAL = '#ff2020';
+  const COLOR_WARNING = '#ffd020';
+  const COLOR_NOMINAL = '#20c060';
+  const SECONDARY_MODEL = {
+    COLD_LEG_BASE_DROP_C: 90,
+    FLOW_NOMINAL: 2840,
+    COLD_LEG_FLOW_DIVISOR: 42,
+    COLD_LEG_MIN_C: 320,
+    COLD_LEG_MAX_C: 470,
+    THERMAL_TO_ELECTRIC_FACTOR: 2.85, // Approximate conversion tuned to nominal Rankine cycle behavior for this unit model.
+    MIN_STEAM_INPUT_FOR_EFF: 25,
+    SECONDARY_SENSOR_KEYS: ['SG_INLET', 'STEAM_PRESS', 'TURBINE_RPM', 'GRID_OUT', 'PUMP_B', 'SEC_FLOW'],
+    EFF_WARN: 95,
+    EFF_CRIT: 93.5,
+    VAC_WARN: 85,
+    VAC_CRIT: 82,
+    HEAT_DELTA_WARN: 1,
+    HEAT_DELTA_CRIT: 2,
+    THERMAL_BASE_TEMP_C: 380,
+    THERMAL_TEMP_GAIN: 5,
+    THERMAL_FLOW_GAIN: 0.15,
+    ELECTRIC_GRID_GAIN: 1.75,
+    ELECTRIC_TURB_GAIN: 0.03,
+    MIN_THERMAL_INPUT_FOR_DELTA: 50,
+  };
   const ss = s.sensors;
   if (!ss) return;
 
@@ -812,7 +901,7 @@ function renderSecondaryLoop(s) {
   const grid = ss.GRID_OUT?.v ?? 478;
   const sg = ss.SG_INLET?.v ?? 480;
 
-  const sensors = ['SG_INLET','STEAM_PRESS','TURBINE_RPM','GRID_OUT','PUMP_B','SEC_FLOW']
+  const sensors = SECONDARY_MODEL.SECONDARY_SENSOR_KEYS
     .map(k => ss[k])
     .filter(Boolean);
   const hasAlarm = sensors.some(sr => DAO.status(sr) === 'alarm');
@@ -822,29 +911,33 @@ function renderSecondaryLoop(s) {
   if (st) {
     if (s.scramActive) {
       st.textContent = 'LOOP STATUS: SCRAM SHUTDOWN';
-      st.style.color = '#ff2020';
-      st.style.borderColor = '#ff202055';
+      st.style.color = COLOR_CRITICAL;
+      st.style.borderColor = `${COLOR_CRITICAL}55`;
       st.style.background = 'rgba(255,32,32,.08)';
     } else if (hasAlarm) {
       st.textContent = 'LOOP STATUS: CRITICAL DEVIATION';
-      st.style.color = '#ff2020';
-      st.style.borderColor = '#ff202055';
+      st.style.color = COLOR_CRITICAL;
+      st.style.borderColor = `${COLOR_CRITICAL}55`;
       st.style.background = 'rgba(255,32,32,.08)';
     } else if (hasWarn) {
       st.textContent = 'LOOP STATUS: COMPENSATING';
-      st.style.color = '#ffd020';
-      st.style.borderColor = '#ffd02055';
+      st.style.color = COLOR_WARNING;
+      st.style.borderColor = `${COLOR_WARNING}55`;
       st.style.background = 'rgba(255,208,32,.08)';
     } else {
       st.textContent = 'LOOP STATUS: NOMINAL';
-      st.style.color = '#20c060';
-      st.style.borderColor = '#20c06055';
+      st.style.color = COLOR_NOMINAL;
+      st.style.borderColor = `${COLOR_NOMINAL}55`;
       st.style.background = 'rgba(32,192,96,.08)';
     }
   }
 
   setText('sec-hot-temp-label', `${sg.toFixed(0)}°C →`);
-  const coldLeg = clamp(sg - 90 - (flow - 2840) / 42, 320, 470);
+  const coldLeg = clamp(
+    sg - SECONDARY_MODEL.COLD_LEG_BASE_DROP_C - (flow - SECONDARY_MODEL.FLOW_NOMINAL) / SECONDARY_MODEL.COLD_LEG_FLOW_DIVISOR,
+    SECONDARY_MODEL.COLD_LEG_MIN_C,
+    SECONDARY_MODEL.COLD_LEG_MAX_C
+  );
   setText('sec-cold-temp-label', `← ${coldLeg.toFixed(0)}°C`);
   setText('sec-steam-pressure-label', `STEAM ${steam.toFixed(1)} bar`);
 
@@ -853,7 +946,7 @@ function renderSecondaryLoop(s) {
     const load = clamp((steam - 130) / 50, 0.08, 1);
     steamLine.style.opacity = String(load);
     steamLine.style.strokeWidth = `${2 + load * 1.8}px`;
-    steamLine.style.stroke = steam > 173 ? '#ff2020' : steam > 168 ? '#ffd020' : '#ff8020';
+    steamLine.style.stroke = steam > 173 ? COLOR_CRITICAL : steam > 168 ? COLOR_WARNING : '#ff8020';
     steamLine.style.strokeDashoffset = String(-Date.now() / (46 - load * 20));
   }
 
@@ -861,7 +954,7 @@ function renderSecondaryLoop(s) {
   if (condense) {
     const cond = clamp((turb - 2700) / 500, 0.1, 1);
     condense.style.opacity = String(cond * 0.95);
-    condense.style.stroke = hasAlarm ? '#ff2020' : '#7a8590';
+    condense.style.stroke = hasAlarm ? COLOR_CRITICAL : '#7a8590';
     condense.style.strokeWidth = `${2.4 + cond * 1.2}px`;
   }
 
@@ -875,7 +968,7 @@ function renderSecondaryLoop(s) {
   const pumpRing = document.getElementById('sec-pump-b');
   if (pumpRing) {
     const pumpLoad = clamp((pump - 2600) / 1000, 0, 1);
-    pumpRing.style.stroke = pump < 2850 ? '#ff2020' : pump > 3450 ? '#ffd020' : '#20c060';
+    pumpRing.style.stroke = pump < 2850 ? COLOR_CRITICAL : pump > 3450 ? COLOR_WARNING : COLOR_NOMINAL;
     pumpRing.style.strokeWidth = `${1.5 + pumpLoad * 1.2}`;
   }
 
@@ -886,23 +979,28 @@ function renderSecondaryLoop(s) {
   if (nodeCold) nodeCold.style.opacity = String(clamp((flow - 2100) / 950, 0.35, 1));
   if (nodeSteam) {
     nodeSteam.style.opacity = String(clamp((steam - 130) / 50, 0.35, 1));
-    nodeSteam.style.fill = steam > 173 ? '#ff2020' : '#ff8020';
+    nodeSteam.style.fill = steam > 173 ? COLOR_CRITICAL : '#ff8020';
   }
 
   const kpi = document.getElementById('sec-kpis');
   if (kpi) {
-    const eff = clamp((grid / Math.max(1, steam * 2.85)) * 100, 90.5, 102.5);
+    const steamInputEquivalent = steam * SECONDARY_MODEL.THERMAL_TO_ELECTRIC_FACTOR;
+    const eff = steamInputEquivalent > SECONDARY_MODEL.MIN_STEAM_INPUT_FOR_EFF
+      ? clamp((grid / steamInputEquivalent) * 100, 90.5, 102.5)
+      : 0;
     const vac = clamp(86 + (turb - 2900) / 18 - Math.max(0, (flow - 2840) / 120), 78, 94);
     const feed = clamp(208 + (steam - 155) * 0.95 - (flow - 2840) / 95, 178, 245);
-    const thermalIn = (sg - 380) * 5 + flow * 0.15;
-    const electricEq = grid * 1.75 + turb * 0.03;
-    const delta = ((electricEq - thermalIn) / Math.max(thermalIn, 1)) * 100;
+    const thermalIn = (sg - SECONDARY_MODEL.THERMAL_BASE_TEMP_C) * SECONDARY_MODEL.THERMAL_TEMP_GAIN + flow * SECONDARY_MODEL.THERMAL_FLOW_GAIN;
+    const electricEq = grid * SECONDARY_MODEL.ELECTRIC_GRID_GAIN + turb * SECONDARY_MODEL.ELECTRIC_TURB_GAIN;
+    const delta = thermalIn > SECONDARY_MODEL.MIN_THERMAL_INPUT_FOR_DELTA
+      ? ((electricEq - thermalIn) / thermalIn) * 100
+      : 0;
 
     const rows = [
-      { label:'Turbine Isentropic Efficiency', val:`${eff.toFixed(1)} %`, col: eff < 93.5 ? '#ff2020' : eff < 95 ? '#ffd020' : '#20c060' },
-      { label:'Condenser Vacuum', val:`${vac.toFixed(1)} kPa abs`, col: vac < 82 ? '#ff2020' : vac < 85 ? '#ffd020' : '#7a8590' },
+      { label:'Turbine Isentropic Efficiency', val:`${eff.toFixed(1)} %`, col: eff < SECONDARY_MODEL.EFF_CRIT ? COLOR_CRITICAL : eff < SECONDARY_MODEL.EFF_WARN ? COLOR_WARNING : COLOR_NOMINAL },
+      { label:'Condenser Vacuum', val:`${vac.toFixed(1)} kPa abs`, col: vac < SECONDARY_MODEL.VAC_CRIT ? COLOR_CRITICAL : vac < SECONDARY_MODEL.VAC_WARN ? COLOR_WARNING : '#7a8590' },
       { label:'Feedwater Return Temp', val:`${feed.toFixed(1)} °C`, col:'#7a8590' },
-      { label:'Heat Balance Δ', val:`${delta >= 0 ? '+' : ''}${delta.toFixed(2)} %`, col: Math.abs(delta) > 2 ? '#ff2020' : Math.abs(delta) > 1 ? '#ffd020' : '#20c060' },
+      { label:'Heat Balance Δ', val:`${delta >= 0 ? '+' : ''}${delta.toFixed(2)} %`, col: Math.abs(delta) > SECONDARY_MODEL.HEAT_DELTA_CRIT ? COLOR_CRITICAL : Math.abs(delta) > SECONDARY_MODEL.HEAT_DELTA_WARN ? COLOR_WARNING : COLOR_NOMINAL },
     ];
 
     kpi.innerHTML = rows.map(r => `<div class="bg-[#0f1114] border border-[rgba(255,255,255,.06)] p-2.5 mb-2">
