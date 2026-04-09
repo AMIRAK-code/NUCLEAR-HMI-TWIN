@@ -50,6 +50,38 @@ const DAO = {
         if (k === 'NEUTRON_FLUX') s.v = Math.max(s.v - 0.05, 0.1);
       }
     });
+
+    // Secondary loop coupling for more realistic behavior
+    const core = this._s.CORE_TEMP;
+    const sg = this._s.SG_INLET;
+    const steam = this._s.STEAM_PRESS;
+    const turb = this._s.TURBINE_RPM;
+    const grid = this._s.GRID_OUT;
+    const flow = this._s.SEC_FLOW;
+    const pumpB = this._s.PUMP_B;
+
+    if (core && sg && steam && turb && grid && flow && pumpB) {
+      const n = this.NOMINAL;
+      const thermalDrive = (core.v - n.CORE_TEMP) / 180;
+      const pumpDrive = (pumpB.v - n.PUMP_B) / 520;
+
+      const flowTarget = n.SEC_FLOW + pumpDrive * 260 - (scramActive ? 1200 : 0);
+      flow.v = clamp(flow.v * 0.8 + flowTarget * 0.2, flow.low * 0.85, flow.trip * 0.99);
+
+      const sgTarget = n.SG_INLET + thermalDrive * 9 - (flow.v - n.SEC_FLOW) / 520 - (scramActive ? 65 : 0);
+      sg.v = clamp(sg.v * 0.84 + sgTarget * 0.16, sg.low * 0.9, sg.trip * 0.99);
+
+      const steamTarget = n.STEAM_PRESS + thermalDrive * 5.5 + (flow.v - n.SEC_FLOW) / 240 - (scramActive ? 35 : 0);
+      steam.v = clamp(steam.v * 0.82 + steamTarget * 0.18, steam.low * 0.88, steam.trip * 0.995);
+
+      const turbTarget = n.TURBINE_RPM + (steam.v - n.STEAM_PRESS) * 20 + pumpDrive * 45 - (scramActive ? 2100 : 0);
+      turb.v = clamp(turb.v * 0.8 + turbTarget * 0.2, turb.low * 0.75, turb.trip * 0.995);
+
+      const gridTarget = n.GRID_OUT + (turb.v - n.TURBINE_RPM) * 0.12 - (scramActive ? 340 : 0);
+      grid.v = clamp(grid.v * 0.82 + gridTarget * 0.18, 0, grid.trip * 0.995);
+
+      if (scramActive) pumpB.v = clamp(pumpB.v - 38, 1600, pumpB.trip * 0.99);
+    }
   },
 
   snapshot() {
@@ -449,6 +481,7 @@ function render(s) {
   renderAuditPanel(s);
   renderSafetyPanel(s);
   renderSecondaryStats(s);
+  renderSecondaryLoop(s);
   renderDiagnostics(s);
   renderAIPredictions(s);
   renderAnomalyList(s);
@@ -766,6 +799,117 @@ function renderSecondaryStats(s) {
       </div>
     </div>`;
   });
+}
+
+function renderSecondaryLoop(s) {
+  const ss = s.sensors;
+  if (!ss) return;
+
+  const steam = ss.STEAM_PRESS?.v ?? 165;
+  const flow = ss.SEC_FLOW?.v ?? 2840;
+  const pump = ss.PUMP_B?.v ?? 3185;
+  const turb = ss.TURBINE_RPM?.v ?? 3000;
+  const grid = ss.GRID_OUT?.v ?? 478;
+  const sg = ss.SG_INLET?.v ?? 480;
+
+  const sensors = ['SG_INLET','STEAM_PRESS','TURBINE_RPM','GRID_OUT','PUMP_B','SEC_FLOW']
+    .map(k => ss[k])
+    .filter(Boolean);
+  const hasAlarm = sensors.some(sr => DAO.status(sr) === 'alarm');
+  const hasWarn = sensors.some(sr => DAO.status(sr) === 'warning' || DAO.status(sr) === 'low');
+
+  const st = document.getElementById('sec-status');
+  if (st) {
+    if (s.scramActive) {
+      st.textContent = 'LOOP STATUS: SCRAM SHUTDOWN';
+      st.style.color = '#ff2020';
+      st.style.borderColor = '#ff202055';
+      st.style.background = 'rgba(255,32,32,.08)';
+    } else if (hasAlarm) {
+      st.textContent = 'LOOP STATUS: CRITICAL DEVIATION';
+      st.style.color = '#ff2020';
+      st.style.borderColor = '#ff202055';
+      st.style.background = 'rgba(255,32,32,.08)';
+    } else if (hasWarn) {
+      st.textContent = 'LOOP STATUS: COMPENSATING';
+      st.style.color = '#ffd020';
+      st.style.borderColor = '#ffd02055';
+      st.style.background = 'rgba(255,208,32,.08)';
+    } else {
+      st.textContent = 'LOOP STATUS: NOMINAL';
+      st.style.color = '#20c060';
+      st.style.borderColor = '#20c06055';
+      st.style.background = 'rgba(32,192,96,.08)';
+    }
+  }
+
+  setText('sec-hot-temp-label', `${sg.toFixed(0)}°C →`);
+  const coldLeg = clamp(sg - 90 - (flow - 2840) / 42, 320, 470);
+  setText('sec-cold-temp-label', `← ${coldLeg.toFixed(0)}°C`);
+  setText('sec-steam-pressure-label', `STEAM ${steam.toFixed(1)} bar`);
+
+  const steamLine = document.getElementById('sec-line-steam');
+  if (steamLine) {
+    const load = clamp((steam - 130) / 50, 0.08, 1);
+    steamLine.style.opacity = String(load);
+    steamLine.style.strokeWidth = `${2 + load * 1.8}px`;
+    steamLine.style.stroke = steam > 173 ? '#ff2020' : steam > 168 ? '#ffd020' : '#ff8020';
+    steamLine.style.strokeDashoffset = String(-Date.now() / (46 - load * 20));
+  }
+
+  const condense = document.getElementById('sec-line-condense');
+  if (condense) {
+    const cond = clamp((turb - 2700) / 500, 0.1, 1);
+    condense.style.opacity = String(cond * 0.95);
+    condense.style.stroke = hasAlarm ? '#ff2020' : '#7a8590';
+    condense.style.strokeWidth = `${2.4 + cond * 1.2}px`;
+  }
+
+  const ret = document.getElementById('sec-line-return');
+  if (ret) {
+    const retLoad = clamp((flow - 2200) / 900, 0.1, 1);
+    ret.style.opacity = String(retLoad);
+    ret.style.strokeWidth = `${2.2 + retLoad * 1.4}px`;
+  }
+
+  const pumpRing = document.getElementById('sec-pump-b');
+  if (pumpRing) {
+    const pumpLoad = clamp((pump - 2600) / 1000, 0, 1);
+    pumpRing.style.stroke = pump < 2850 ? '#ff2020' : pump > 3450 ? '#ffd020' : '#20c060';
+    pumpRing.style.strokeWidth = `${1.5 + pumpLoad * 1.2}`;
+  }
+
+  const nodeHot = document.getElementById('sec-hot-node');
+  const nodeCold = document.getElementById('sec-cold-node');
+  const nodeSteam = document.getElementById('sec-steam-node');
+  if (nodeHot) nodeHot.style.opacity = String(clamp((sg - 430) / 110, 0.35, 1));
+  if (nodeCold) nodeCold.style.opacity = String(clamp((flow - 2100) / 950, 0.35, 1));
+  if (nodeSteam) {
+    nodeSteam.style.opacity = String(clamp((steam - 130) / 50, 0.35, 1));
+    nodeSteam.style.fill = steam > 173 ? '#ff2020' : '#ff8020';
+  }
+
+  const kpi = document.getElementById('sec-kpis');
+  if (kpi) {
+    const eff = clamp((grid / Math.max(1, steam * 2.85)) * 100, 90.5, 102.5);
+    const vac = clamp(86 + (turb - 2900) / 18 - Math.max(0, (flow - 2840) / 120), 78, 94);
+    const feed = clamp(208 + (steam - 155) * 0.95 - (flow - 2840) / 95, 178, 245);
+    const thermalIn = (sg - 380) * 5 + flow * 0.15;
+    const electricEq = grid * 1.75 + turb * 0.03;
+    const delta = ((electricEq - thermalIn) / Math.max(thermalIn, 1)) * 100;
+
+    const rows = [
+      { label:'Turbine Isentropic Efficiency', val:`${eff.toFixed(1)} %`, col: eff < 93.5 ? '#ff2020' : eff < 95 ? '#ffd020' : '#20c060' },
+      { label:'Condenser Vacuum', val:`${vac.toFixed(1)} kPa abs`, col: vac < 82 ? '#ff2020' : vac < 85 ? '#ffd020' : '#7a8590' },
+      { label:'Feedwater Return Temp', val:`${feed.toFixed(1)} °C`, col:'#7a8590' },
+      { label:'Heat Balance Δ', val:`${delta >= 0 ? '+' : ''}${delta.toFixed(2)} %`, col: Math.abs(delta) > 2 ? '#ff2020' : Math.abs(delta) > 1 ? '#ffd020' : '#20c060' },
+    ];
+
+    kpi.innerHTML = rows.map(r => `<div class="bg-[#0f1114] border border-[rgba(255,255,255,.06)] p-2.5 mb-2">
+      <div class="tv text-[9px] text-[#4a5260] uppercase tracking-wider">${r.label}</div>
+      <div class="tv text-[12px] font-bold mt-1" style="color:${r.col}">${r.val}</div>
+    </div>`).join('');
+  }
 }
 
 function renderDiagnostics(s) {
@@ -1500,6 +1644,7 @@ function mkEntry(msg,role) { return { ts:ts(), role:role||'SYS', msg }; }
 function p2(n)             { return String(n).padStart(2,'0'); }
 function p3(n)             { return String(n).padStart(3,'0'); }
 function pct(v,lo,hi)      { return ((v-lo)/(hi-lo))*100; }
+function clamp(v,min,max)  { return Math.min(max, Math.max(min, v)); }
 function setText(id,val)   { const e=document.getElementById(id); if(e&&val!==null) e.textContent=val; }
 function setAttr(id,a,v)   { const e=document.getElementById(id); if(e) e.setAttribute(a,v); }
 function dlFile(content,name,type) {
