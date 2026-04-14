@@ -588,16 +588,16 @@ function renderCyberPanel(s) {
       return `<div style="display:flex;align-items:center;justify-content:space-between;
                            padding:8px 0;border-bottom:1px solid rgba(0,0,0,.04);">
         <div>
-          <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
+          <div style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;
                       color:#343a40;text-transform:uppercase;">${n.id}</div>
-          <div style="font-family:'Courier New',monospace;font-size:10px;color:#6c757d;
+          <div style="font-family:'Courier New',monospace;font-size:12px;color:#6c757d;
                       margin-top:2px;">${n.label}</div>
           ${loadBar}
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:12px;">
-          <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
+          <div style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;
                       color:${col};">${n.status}</div>
-          <div style="font-family:'Courier New',monospace;font-size:9px;color:#6c757d;
+          <div style="font-family:'Courier New',monospace;font-size:11px;color:#6c757d;
                       margin-top:2px;">${n.latency} · ${loadVal > 0 ? loadVal+'% CPU' : '—'}</div>
         </div>
       </div>`;
@@ -622,10 +622,10 @@ function renderCyberPanel(s) {
     logEl.innerHTML = entries.map(e => {
       const col = e.sev === 'WARN' ? '#d97d06' : '#6c757d';
       return `<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid rgba(0,0,0,.04);">
-        <span style="font-family:'Courier New',monospace;font-size:9px;color:#adb5bd;flex-shrink:0;">${e.ts}</span>
-        <span style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
+        <span style="font-family:'Courier New',monospace;font-size:11px;color:#adb5bd;flex-shrink:0;">${e.ts}</span>
+        <span style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;
                      color:${col};flex-shrink:0;min-width:30px;">${e.sev}</span>
-        <span style="font-family:'Courier New',monospace;font-size:9px;color:#495057;">${e.msg}</span>
+        <span style="font-family:'Courier New',monospace;font-size:11px;color:#495057;">${e.msg}</span>
       </div>`;
     }).join('');
   }
@@ -647,11 +647,11 @@ function renderCyberPanel(s) {
     encEl.innerHTML = suites.map(suite => `
       <div style="display:flex;justify-content:space-between;align-items:center;
                   padding:6px 0;border-bottom:1px solid rgba(0,0,0,.04);">
-        <div style="font-family:'Courier New',monospace;font-size:9px;color:#6c757d;">${suite.label}</div>
+        <div style="font-family:'Courier New',monospace;font-size:11px;color:#6c757d;">${suite.label}</div>
         <div style="text-align:right;">
-          <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;color:#343a40;">
+          <div style="font-family:'Courier New',monospace;font-size:11px;font-weight:700;color:#343a40;">
             ${suite.val}</div>
-          <div style="font-family:'Courier New',monospace;font-size:8px;color:#159647;
+          <div style="font-family:'Courier New',monospace;font-size:10px;color:#159647;
                       text-transform:uppercase;">${suite.status}</div>
         </div>
       </div>`).join('');
@@ -687,7 +687,7 @@ function renderAuditPanel(s) {
     list.innerHTML = [...s.auditLog].reverse().map(e =>
       `<div class="flex gap-2 py-1 border-b border-[rgba(0,0,0,.04)]">
         <span class="text-[#6c757d] shrink-0">${e.ts}</span>
-        <span class="text-[9px] text-[#495057] shrink-0 uppercase">[${e.role||'SYS'}]</span>
+        <span class="text-[11px] text-[#495057] shrink-0 uppercase">[${e.role||'SYS'}]</span>
         <span class="text-[#343a40]">${e.msg}</span>
       </div>`
     ).join('');
@@ -713,7 +713,7 @@ function renderSafetyPanel(s) {
     rt.innerHTML = s.controlRods.map(r => {
       const pos = s.scramActive ? Math.min(100, r.pos + avgPos * 0.1 + 15) : r.pos + (avgPos - 72) * 0.2;
       const col = pos > 85 ? '#d97d06' : pos < 20 ? '#e31a1a' : '#343a40';
-      return `<div class="flex items-center gap-2 tv text-[10px] mb-1.5">
+      return `<div class="flex items-center gap-2 tv text-[12px] mb-1.5">
         <span class="w-14 font-bold text-[#343a40] shrink-0">${r.id}</span>
         <div class="flex-1 h-1.5 bg-[#f4f6f8]">
           <div class="h-full transition-all duration-700" style="width:${Math.min(100,pos).toFixed(0)}%;background:${col}"></div>
@@ -729,10 +729,10 @@ function renderSafetyPanel(s) {
       const c = i.st==='OFFLINE'?'#6c757d':i.st==='TRIPPED'?'#e31a1a':'#159647';
       return `<div class="flex items-center justify-between py-2 border-b border-[rgba(0,0,0,.04)]">
         <div>
-          <div class="tv text-[10px] font-bold text-[#212529]">${i.label}</div>
-          <div class="tv text-[9px] text-[#6c757d]">${i.tag} · SP: ${i.sp}</div>
+          <div class="tv text-[12px] font-bold text-[#212529]">${i.label}</div>
+          <div class="tv text-[11px] text-[#6c757d]">${i.tag} · SP: ${i.sp}</div>
         </div>
-        <span class="tv text-[9px] font-bold px-1.5 py-0.5 shrink-0" style="color:${c};border:1px solid ${c}33">${i.st}</span>
+        <span class="tv text-[11px] font-bold px-1.5 py-0.5 shrink-0" style="color:${c};border:1px solid ${c}33">${i.st}</span>
       </div>`;
     }).join('');
   }
@@ -759,7 +759,7 @@ function renderSecondaryStats(s) {
     const unit = sr?.u ?? '';
     const isAlarm = sr && DAO.status(sr) === 'alarm';
     el.innerHTML += `<div class="bg-[#f4f6f8] border ${isAlarm?'border-[#e31a1a]/30':'border-[rgba(0,0,0,.06)]'} p-3 mb-2">
-      <div class="tv text-[9px] text-[#6c757d] uppercase tracking-wider font-bold">${st.label}</div>
+      <div class="tv text-[11px] text-[#6c757d] uppercase tracking-wider font-bold">${st.label}</div>
       <div class="tv text-xl font-bold mt-0.5" style="color:${isAlarm?'#e31a1a':'#212529'}">${val} <span class="text-xs font-normal text-[#6c757d]">${unit}</span></div>
       <div class="w-full h-1 bg-[#d1d6dc] mt-2">
         <div class="h-full transition-all duration-1000" style="width:${Math.min(100,Math.max(0,st.pct)).toFixed(0)}%;background:${isAlarm?'#e31a1a':st.col}"></div>
@@ -776,13 +776,13 @@ function renderSecondaryStats(s) {
 
     if (s.scramActive) {
       secStatus.textContent = 'LOOP STATUS: SCRAM ISOLATION';
-      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#e31a1a]/30 bg-[#e31a1a]/5 text-[#e31a1a] font-bold uppercase tracking-wider';
+      secStatus.className = 'tv text-[11px] px-2 py-1 border border-[#e31a1a]/30 bg-[#e31a1a]/5 text-[#e31a1a] font-bold uppercase tracking-wider';
     } else if (isSecAlarm) {
       secStatus.textContent = 'LOOP STATUS: ALARM DEVIATION';
-      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#cd5c08]/30 bg-[#cd5c08]/5 text-[#cd5c08] font-bold uppercase tracking-wider blink';
+      secStatus.className = 'tv text-[11px] px-2 py-1 border border-[#cd5c08]/30 bg-[#cd5c08]/5 text-[#cd5c08] font-bold uppercase tracking-wider blink';
     } else {
       secStatus.textContent = 'LOOP STATUS: NOMINAL';
-      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#159647]/30 bg-[#159647]/5 text-[#159647] font-bold uppercase tracking-wider';
+      secStatus.className = 'tv text-[11px] px-2 py-1 border border-[#159647]/30 bg-[#159647]/5 text-[#159647] font-bold uppercase tracking-wider';
     }
   }
 
@@ -809,13 +809,13 @@ function renderDiagnostics(s) {
     const rb = st==='alarm'?'rgba(255,32,32,.05)':st==='warning'?'rgba(255,208,32,.04)':'';
     return `<tr class="sr" style="${rb?`background:${rb}`:''}">
       <td class="px-5 py-2 tv font-bold text-[#212529]">${sr.tag}</td>
-      <td class="px-3 py-2 tv text-[#6c757d] text-[10px]">${sr.label}</td>
-      <td class="px-3 py-2 tv text-[#6c757d] text-[10px] uppercase">${sr.sys}</td>
+      <td class="px-3 py-2 tv text-[#6c757d] text-[12px]">${sr.label}</td>
+      <td class="px-3 py-2 tv text-[#6c757d] text-[12px] uppercase">${sr.sys}</td>
       <td class="px-3 py-2 tv text-right font-bold" style="color:${c}">${DAO.fmt(sr)}</td>
-      <td class="px-3 py-2 tv text-right text-[#6c757d] text-[10px]">${sr.u}</td>
-      <td class="px-3 py-2 tv text-right text-[#6c757d] text-[10px]">${sr.trip}</td>
-      <td class="px-3 py-2 tv text-center"><span class="text-[9px] font-bold px-1.5 py-0.5" style="color:${c};border:1px solid ${c}40">${slbl[st]}</span></td>
-      <td class="px-5 py-2 tv text-right text-[#6c757d] text-[9px]">${now}</td>
+      <td class="px-3 py-2 tv text-right text-[#6c757d] text-[12px]">${sr.u}</td>
+      <td class="px-3 py-2 tv text-right text-[#6c757d] text-[12px]">${sr.trip}</td>
+      <td class="px-3 py-2 tv text-center"><span class="text-[11px] font-bold px-1.5 py-0.5" style="color:${c};border:1px solid ${c}40">${slbl[st]}</span></td>
+      <td class="px-5 py-2 tv text-right text-[#6c757d] text-[11px]">${now}</td>
     </tr>`;
   }).join('');
 }
@@ -830,8 +830,8 @@ function renderAIPredictions(s) {
     { label:'Neutron Flux',  val:'Stable ±0.1%',                                      col:'#343a40' },
     { label:'Grid Output',   val:`${((ss.GRID_OUT?.v||478)+1.6).toFixed(1)} MWe`,    col:'#159647' },
   ].map(p => `<div class="flex items-center justify-between py-1.5 border-b border-[rgba(0,0,0,.06)]">
-    <span class="tv text-[10px] text-[#6c757d]">${p.label}</span>
-    <span class="tv text-[10px] font-bold" style="color:${p.col}">${p.val}</span>
+    <span class="tv text-[12px] text-[#6c757d]">${p.label}</span>
+    <span class="tv text-[12px] font-bold" style="color:${p.col}">${p.val}</span>
   </div>`).join('');
 }
 
@@ -840,15 +840,15 @@ function renderAnomalyList(s) {
   if (!el) return;
   const active = s.alarms.filter(a => !a.acked).slice(0, 5);
   if (!active.length) {
-    el.innerHTML = '<div class="tv text-[10px] text-[#6c757d] italic">No active anomalies</div>';
+    el.innerHTML = '<div class="tv text-[12px] text-[#6c757d] italic">No active anomalies</div>';
     return;
   }
   el.innerHTML = active.map(a => {
     const col = a.p===1?'#e31a1a':a.p===2?'#d97d06':'#cd5c08';
     return `<div class="p-3 border border-l-4 space-y-0.5 mb-2" style="border-color:${col}33;border-left-color:${col};background:${col}09">
-      <div class="tv text-[9px] font-bold uppercase" style="color:${col}">P${a.p} — ${a.tag}</div>
-      <div class="tv text-[10px] text-[#212529]">${a.msg}</div>
-      <div class="tv text-[9px] text-[#6c757d]">${a.ts}</div>
+      <div class="tv text-[11px] font-bold uppercase" style="color:${col}">P${a.p} — ${a.tag}</div>
+      <div class="tv text-[12px] text-[#212529]">${a.msg}</div>
+      <div class="tv text-[11px] text-[#6c757d]">${a.ts}</div>
     </div>`;
   }).join('');
 }
@@ -862,7 +862,7 @@ function renderCopilotSteps(s) {
     {n:3, title:'Adjust Control Rod Depth',  desc:'Pending: awaiting step 2 completion',             btn:true },
     {n:4, title:'Verify Thermal Balance',    desc:'Automated check — T+3 min',                       btn:false},
   ];
-  el.innerHTML = `<div class="tv text-[9px] text-[#6c757d] uppercase tracking-widest mb-2">Protocol SCCP-74A</div>` +
+  el.innerHTML = `<div class="tv text-[11px] text-[#6c757d] uppercase tracking-widest mb-2">Protocol SCCP-74A</div>` +
     STEPS.map(st => {
       const done=st.n<s.protocolStep, active=st.n===s.protocolStep, pending=st.n>s.protocolStep;
       const cls = done   ? 'flex gap-2 p-2.5 bg-[#159647]/5 border-l-2 border-[#159647] mb-2'
@@ -870,14 +870,14 @@ function renderCopilotSteps(s) {
                 :          'flex gap-2 p-2.5 mb-2 opacity-40';
       const num = done
         ? `<div class="w-5 h-5 rounded-full border border-[#159647] text-[#159647] flex items-center justify-center flex-shrink-0"><span class="ms material-symbols-outlined text-[11px]">check</span></div>`
-        : `<div class="w-5 h-5 rounded-full border ${active?'border-[#495057] text-[#343a40]':'border-[#adb5bd] text-[#adb5bd]'} flex items-center justify-center flex-shrink-0 tv text-[10px] font-bold">${st.n}</div>`;
+        : `<div class="w-5 h-5 rounded-full border ${active?'border-[#495057] text-[#343a40]':'border-[#adb5bd] text-[#adb5bd]'} flex items-center justify-center flex-shrink-0 tv text-[12px] font-bold">${st.n}</div>`;
       const ackBtn = (active && st.btn)
-        ? `<button class="copilot-ack mt-1.5 tv text-[9px] px-2 py-0.5 bg-[#d1d6dc] hover:bg-[#ced4da] border border-[rgba(0,0,0,.1)] font-bold uppercase tracking-wider transition-colors">ACKNOWLEDGE STEP</button>`
+        ? `<button class="copilot-ack mt-1.5 tv text-[11px] px-2 py-0.5 bg-[#d1d6dc] hover:bg-[#ced4da] border border-[rgba(0,0,0,.1)] font-bold uppercase tracking-wider transition-colors">ACKNOWLEDGE STEP</button>`
         : '';
       return `<div class="${cls}">${num}
         <div class="flex-1">
-          <div class="tv text-[10px] font-bold uppercase text-[#212529]">${st.title}</div>
-          <div class="tv text-[9px] text-[#6c757d] italic mt-0.5">${st.desc}</div>
+          <div class="tv text-[12px] font-bold uppercase text-[#212529]">${st.title}</div>
+          <div class="tv text-[11px] text-[#6c757d] italic mt-0.5">${st.desc}</div>
           ${ackBtn}
         </div>
       </div>`;
@@ -956,8 +956,8 @@ function initThreeJS() {
   function setCam(mode) {
     activeCam = mode==='persp' ? perspCam : orthoCam;
     const pe=document.getElementById('btn-persp'), oe=document.getElementById('btn-ortho');
-    const act='tv text-[9px] px-2 py-1 border border-[rgba(0,0,0,.1)] font-bold bg-[#212529] text-[#f4f6f8]';
-    const inact='tv text-[9px] px-2 py-1 border border-[rgba(0,0,0,.1)] font-bold bg-[#d1d6dc] text-[#343a40] hover:bg-[#ced4da]';
+    const act='tv text-[11px] px-2 py-1 border border-[rgba(0,0,0,.1)] font-bold bg-[#212529] text-[#f4f6f8]';
+    const inact='tv text-[11px] px-2 py-1 border border-[rgba(0,0,0,.1)] font-bold bg-[#d1d6dc] text-[#343a40] hover:bg-[#ced4da]';
     if(pe) pe.className=mode==='persp'?act:inact;
     if(oe) oe.className=mode==='ortho'?act:inact;
     dispatch('LOG',{msg:`Digital Twin camera: ${mode.toUpperCase()}`});
@@ -1080,21 +1080,21 @@ function bindAll() {
       content: `
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
           <div>
-            <div style="font-family:'Courier New',monospace;font-size:10px;
+            <div style="font-family:'Courier New',monospace;font-size:12px;
                         color:#212529;font-weight:700;margin-bottom:8px;
                         border-bottom:1px solid rgba(0,0,0,.08);padding-bottom:4px;">
               LOCAL OPERATOR — OL</div>
             ${renderRoleSummary('OL')}
           </div>
           <div>
-            <div style="font-family:'Courier New',monospace;font-size:10px;
+            <div style="font-family:'Courier New',monospace;font-size:12px;
                         color:#212529;font-weight:700;margin-bottom:8px;
                         border-bottom:1px solid rgba(0,0,0,.08);padding-bottom:4px;">
               DIAGNOSTIC OPERATOR — OD</div>
             ${renderRoleSummary('OD')}
           </div>
           <div>
-            <div style="font-family:'Courier New',monospace;font-size:10px;
+            <div style="font-family:'Courier New',monospace;font-size:12px;
                         color:#212529;font-weight:700;margin-bottom:8px;
                         border-bottom:1px solid rgba(0,0,0,.08);padding-bottom:4px;">
               SYSTEM ADMIN — AS</div>
@@ -1143,7 +1143,7 @@ function bindAll() {
             or <strong style="color:#212529;">System Admin (AS)</strong> role.<br/>
             Current role: <strong style="color:#d97d06;">OL</strong> — Read-only monitoring only.
           </p>
-          <div style="font-family:'Courier New',monospace;font-size:9px;color:#6c757d;
+          <div style="font-family:'Courier New',monospace;font-size:11px;color:#6c757d;
                       border:1px solid rgba(0,0,0,.08);padding:8px;">
             CMP-22 Access Matrix: OL=<span style="color:#adb5bd;">X</span> ·
             OD=<span style="color:#159647;">R/U</span> ·
@@ -1157,7 +1157,7 @@ function bindAll() {
       icon: 'science',
       title: 'Emergency Scenario Simulator',
       content: `<div class="tv space-y-3 text-sm">
-        <div class="p-3 border border-[#cd5c08]/20 bg-[#cd5c08]/5 text-[#cd5c08] text-[10px] uppercase tracking-wider font-bold">
+        <div class="p-3 border border-[#cd5c08]/20 bg-[#cd5c08]/5 text-[#cd5c08] text-[12px] uppercase tracking-wider font-bold">
           ⚠ Demo Mode — Simulated Emergency Scenarios · All data is synthetic
         </div>
         <p class="text-[#343a40] text-xs">Select a scenario to simulate. The HMI will escalate sensor values, fire alarms, and trigger AI advisories in real time. You can SCRAM at any time (OD/AS) or let the system auto-trip.</p>
@@ -1165,26 +1165,26 @@ function bindAll() {
           <button id="demo-btn-a" class="w-full text-left p-3 border border-[rgba(0,0,0,.1)] hover:bg-[#d1d6dc] transition-colors group">
             <div class="flex items-center gap-2">
               <span class="tv font-bold text-[#d97d06] text-[11px] uppercase tracking-wider">Scenario A — Rising Core Temperature</span>
-              <span class="tv text-[9px] text-[#6c757d] ml-auto">~7 min to trip</span>
+              <span class="tv text-[11px] text-[#6c757d] ml-auto">~7 min to trip</span>
             </div>
             <p class="tv text-[11px] text-[#343a40] mt-1">Coolant bypass valve partial closure → core temp rises → P3→P2→P1 alarms → auto-SCRAM if unchecked.</p>
           </button>
           <button id="demo-btn-b" class="w-full text-left p-3 border border-[rgba(0,0,0,.1)] hover:bg-[#d1d6dc] transition-colors group">
             <div class="flex items-center gap-2">
               <span class="tv font-bold text-[#cd5c08] text-[11px] uppercase tracking-wider">Scenario B — Loss of Coolant Flow (LOCA)</span>
-              <span class="tv text-[9px] text-[#6c757d] ml-auto">~3 min to trip</span>
+              <span class="tv text-[11px] text-[#6c757d] ml-auto">~3 min to trip</span>
             </div>
             <p class="tv text-[11px] text-[#343a40] mt-1">Pump-A bearing seizure → flow loss → rapid temp rise → overloaded Pump-B → auto-SCRAM by RPS.</p>
           </button>
           <button id="demo-btn-c" class="w-full text-left p-3 border border-[rgba(0,0,0,.1)] hover:bg-[#d1d6dc] transition-colors group">
             <div class="flex items-center gap-2">
               <span class="tv font-bold text-[#e31a1a] text-[11px] uppercase tracking-wider">Scenario C — Station Blackout (SBO)</span>
-              <span class="tv text-[9px] text-[#6c757d] ml-auto">~2 min to trip</span>
+              <span class="tv text-[11px] text-[#6c757d] ml-auto">~2 min to trip</span>
             </div>
             <p class="tv text-[11px] text-[#343a40] mt-1">Total AC power loss → pumps coast-down → EDG failure → passive lead-bismuth cooling → passive SCRAM.</p>
           </button>
         </div>
-        <div class="mt-3 pt-3 border-t border-[rgba(0,0,0,.08)] text-[10px] text-[#6c757d]">
+        <div class="mt-3 pt-3 border-t border-[rgba(0,0,0,.08)] text-[12px] text-[#6c757d]">
           Tip: Switch to Safety panel to watch control rod positions and interlock status in real-time.
         </div>
       </div>`,
@@ -1208,7 +1208,7 @@ function bindAll() {
     showModal({
       icon:'account_tree', title:'System Topology — RT-SIM-04',
       content:`<div class="tv text-xs space-y-0">
-        <div class="text-[#6c757d] text-[9px] mb-3 uppercase tracking-wider">DAO Connection Map — LFR-4G Unit 4</div>
+        <div class="text-[#6c757d] text-[11px] mb-3 uppercase tracking-wider">DAO Connection Map — LFR-4G Unit 4</div>
         ${[['Node Alpha','Reactor Core / Primary Loop','ONLINE','#159647'],
            ['Node Beta', 'Primary Pumps A/B',         'ONLINE','#159647'],
            ['Node Gamma','Emergency Relief Valve',     'OFFLINE','#e31a1a'],
@@ -1230,7 +1230,7 @@ function bindAll() {
     showModal({
       icon:'settings', title:'HMI Configuration',
       content:`<div class="tv text-sm space-y-4">
-        <div class="text-[#6c757d] text-[9px] uppercase tracking-wider border-b border-[rgba(0,0,0,.08)] pb-2">Display & Operations</div>
+        <div class="text-[#6c757d] text-[11px] uppercase tracking-wider border-b border-[rgba(0,0,0,.08)] pb-2">Display & Operations</div>
         <label class="flex items-center justify-between cursor-pointer py-1 border-b border-[rgba(0,0,0,.06)]">
           <span class="text-[#343a40]">Safe-Mode Overrides</span>
           <input type="checkbox" id="s-safe" class="w-4 h-4 accent-[#495057]" checked/>
@@ -1244,7 +1244,7 @@ function bindAll() {
           <input type="checkbox" id="s-mute" class="w-4 h-4 accent-[#495057]"/>
         </label>
         <div class="pt-2">
-          <label class="text-[9px] text-[#6c757d] uppercase tracking-wider">DAO Source Mode</label>
+          <label class="text-[11px] text-[#6c757d] uppercase tracking-wider">DAO Source Mode</label>
           <select id="s-dao" class="w-full mt-1 bg-[#f4f6f8] border border-[rgba(0,0,0,.1)] px-2 py-1.5 tv text-xs text-[#212529] focus:outline-none">
             <option value="SIMULATED">SIMULATED (Politecnico Model)</option>
             <option value="PHYSICAL">PHYSICAL (Live Sensors)</option>
@@ -1270,7 +1270,7 @@ function bindAll() {
       content:`<div class="tv text-sm space-y-3">
         <div class="p-3 border border-[#e31a1a]/20 bg-[#e31a1a]/5 text-[#e31a1a] text-center font-bold uppercase text-xs">Warning: Active Shift In Progress</div>
         <p class="text-[#343a40]">Ending session transfers authority to standby console. SOP-02B procedural hand-off required.</p>
-        <div class="p-2 bg-[#f4f6f8] border border-[rgba(0,0,0,.08)] text-[10px] text-[#6c757d]">Role: ${S.role} · Session: ${S.sessionStart ? ts() : 'N/A'}</div>
+        <div class="p-2 bg-[#f4f6f8] border border-[rgba(0,0,0,.08)] text-[12px] text-[#6c757d]">Role: ${S.role} · Session: ${S.sessionStart ? ts() : 'N/A'}</div>
       </div>`,
       primary:'TERMINATE', secondary:'ABORT',
       onConfirm: () => {
@@ -1301,7 +1301,7 @@ function bindAll() {
         <div><strong class="text-[#212529]">§4.3.1</strong> SCRAM authority: OD and AS roles only. Double-click to confirm.</div>
         <div class="font-bold text-[#212529] text-sm border-b border-[rgba(0,0,0,.08)] pb-2 pt-3">Appendix C: Emergency Depressurization</div>
         <p>Confirm SCRAM engaged → open ERV-01 → notify shift supervisor → log audit trail.</p>
-        <div class="p-2 bg-[#f4f6f8] border border-[rgba(0,0,0,.08)] text-[9px] mt-2">IAEA-LFR-OPS-2026-04 | Rev: 4.2 | Class: RESTRICTED</div>
+        <div class="p-2 bg-[#f4f6f8] border border-[rgba(0,0,0,.08)] text-[11px] mt-2">IAEA-LFR-OPS-2026-04 | Rev: 4.2 | Class: RESTRICTED</div>
       </div>`,
     });
   });
@@ -1322,7 +1322,7 @@ function bindAll() {
             <div class="text-[#e31a1a] font-black text-lg uppercase tracking-wider blink">IRREVERSIBLE ACTION</div>
             <div class="text-sm mt-1 text-[#343a40]">All control rods will be fully inserted. Reactor shuts down immediately.</div>
           </div>
-          <div class="tv text-[10px] text-[#6c757d] border border-[rgba(0,0,0,.08)] p-2">Unit: LFR-4G Unit 4 · User: ${S.role} · ${ts()}</div>
+          <div class="tv text-[12px] text-[#6c757d] border border-[rgba(0,0,0,.08)] p-2">Unit: LFR-4G Unit 4 · User: ${S.role} · ${ts()}</div>
         </div>`,
         primary:'EXECUTE SCRAM', secondary:'ABORT',
         onConfirm: () => {
@@ -1370,7 +1370,7 @@ function bindAll() {
       showModal({
         icon:'check_circle', title:'Simulation Complete',
         content:`<div class="tv text-xs space-y-2">
-          <div class="text-[#6c757d] text-[9px]">Politecnico LFR-Physics Model v3.1 · DAO: ${DAO.mode}</div>
+          <div class="text-[#6c757d] text-[11px]">Politecnico LFR-Physics Model v3.1 · DAO: ${DAO.mode}</div>
           <div class="border border-[rgba(0,0,0,.08)] p-3 space-y-2">
             <div class="flex justify-between"><span class="text-[#6c757d]">Core Temp T+30m</span><span class="font-bold">${(ct+3.4).toFixed(1)} °C</span></div>
             <div class="flex justify-between"><span class="text-[#6c757d]">Pressure T+30m</span><span class="font-bold text-[#d97d06]">${(pp+13.5).toFixed(1)} PSI</span></div>
@@ -1420,7 +1420,7 @@ function bindAll() {
         <div>§5 — Audit Trail &amp; Compliance</div>
         <div>§6 — Emergency Procedures</div>
       </div>
-      <div class="text-[10px] text-[#e31a1a] mt-2">Classification: RESTRICTED</div>
+      <div class="text-[12px] text-[#e31a1a] mt-2">Classification: RESTRICTED</div>
     </div>`});
   });
   document.getElementById('footer-logs').addEventListener('click', ()=>dispatch('TOGGLE_AUDIT'));
@@ -1444,7 +1444,7 @@ function addAIMessage(text, isUser=false) {
   div.className = 'flex gap-3 fade-in' + (isUser?' justify-end':'');
   if (isUser) {
     div.innerHTML = `<div class="bg-[#d1d6dc] p-3 border-r-2 border-[#495057] max-w-xs">
-      <div class="tv text-[9px] text-[#6c757d] mb-1">${S.role||'OL'} — ${ts()}</div>
+      <div class="tv text-[11px] text-[#6c757d] mb-1">${S.role||'OL'} — ${ts()}</div>
       <p class="tv text-xs font-medium text-[#212529]">${text}</p>
     </div>`;
   } else {
@@ -1456,7 +1456,7 @@ function addAIMessage(text, isUser=false) {
       <span class="ms material-symbols-outlined text-[#343a40] text-[13px]" style="font-variation-settings:'FILL' 1">psychology</span>
     </div>
     <div class="flex-1 bg-[#e2e6ea] p-3 border-l-2" style="border-color:${bdrCol}">
-      <div class="tv text-[9px] text-[#6c757d] mb-1">AI COPILOT — ${ts()}</div>
+      <div class="tv text-[11px] text-[#6c757d] mb-1">AI COPILOT — ${ts()}</div>
       <p class="tv text-xs text-[#212529]">${text}</p>
     </div>`;
   }
