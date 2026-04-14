@@ -218,7 +218,7 @@ const ScenarioEngine = {
     hideDemoBar();
     setEmergencyOverlay(0);
     const sEl = document.getElementById('sidebar-unit-state');
-    if (sEl) { sEl.textContent = 'Unit 4: Nominal'; sEl.style.color = '#20c060'; }
+    if (sEl) { sEl.textContent = 'Unit 4: Nominal'; sEl.style.color = '#159647'; }
     scheduleRender();
   },
 
@@ -234,7 +234,7 @@ const ScenarioEngine = {
         const m = Math.floor(remaining / 60);
         const sc = Math.floor(remaining % 60);
         el.textContent = `${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
-        el.className = remaining < 30 ? 'font-bold countdown-critical' : 'font-bold text-[#e0e4e8]';
+        el.className = remaining < 30 ? 'font-bold countdown-critical' : 'font-bold text-[#212529]';
       }
       if (remaining <= 0) clearInterval(this.countdownInterval);
     }, 500);
@@ -247,7 +247,7 @@ const ScenarioEngine = {
     dispatch('SET_DEMO_MODE', { active:true });
     dispatch('LOG', { msg:'DEMO SCENARIO A: Rising Core Temperature initiated' });
 
-    showDemoBar('SCENARIO A — Rising Core Temp: Coolant bypass valve restriction detected', '#ffd020');
+    showDemoBar('SCENARIO A — Rising Core Temp: Coolant bypass valve restriction detected', '#d97d06');
     this.startCountdown(420); // ~7 min trip estimate
 
     dispatch('ADD_ALARM', { alarm:{ id:'DEMO-A01', p:3, tag:'T-CORE-01', msg:'Core temp rising — bypass valve partial restriction', acked:false, ts:ts() }});
@@ -272,7 +272,7 @@ const ScenarioEngine = {
       if (DAO._s.CORE_TEMP.v > 1100 && !S.alarms.find(a=>a.id==='DEMO-A02')) {
         dispatch('ADD_ALARM', { alarm:{ id:'DEMO-A02', p:2, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(1)}°C — approaching trip limit`, acked:false, ts:ts() }});
         addAIMessage('⚠ P2 ALARM: Core temperature exceeded 1100°C. Recommend initiating control rod insertion. Time to P1 trip limit: ~6 minutes at current rate.');
-        showDemoBar('⚠ P2 ALARM — Core temp 1100°C — Control rod insertion recommended', '#ffd020');
+        showDemoBar('⚠ P2 ALARM — Core temp 1100°C — Control rod insertion recommended', '#d97d06');
         this.startCountdown(360);
       }
 
@@ -280,10 +280,10 @@ const ScenarioEngine = {
       if (DAO._s.CORE_TEMP.v > 1160 && !S.alarms.find(a=>a.id==='DEMO-A03')) {
         dispatch('ADD_ALARM', { alarm:{ id:'DEMO-A03', p:1, tag:'T-CORE-01', msg:`CRITICAL: Core temp ${DAO._s.CORE_TEMP.v.toFixed(1)}°C — SCRAM recommended`, acked:false, ts:ts() }});
         addAIMessage('🚨 P1 CRITICAL ALARM: Core temperature at ' + DAO._s.CORE_TEMP.v.toFixed(1) + '°C — 97% of trip limit. SCRAM RECOMMENDED IMMEDIATELY. Predicted trip in T+90s without action.');
-        showDemoBar('🚨 P1 CRITICAL — Core temp ' + DAO._s.CORE_TEMP.v.toFixed(0) + '°C — SCRAM REQUIRED', '#ff2020');
+        showDemoBar('🚨 P1 CRITICAL — Core temp ' + DAO._s.CORE_TEMP.v.toFixed(0) + '°C — SCRAM REQUIRED', '#e31a1a');
         this.startCountdown(90);
         const su = document.getElementById('sidebar-unit-state');
-        if (su) { su.textContent = 'Unit 4: CRITICAL'; su.style.color = '#ff2020'; }
+        if (su) { su.textContent = 'Unit 4: CRITICAL'; su.style.color = '#e31a1a'; }
       }
 
       // Auto-SCRAM at trip limit
@@ -291,7 +291,7 @@ const ScenarioEngine = {
         dispatch('SCRAM');
         dispatch('ADD_ALARM', { alarm:{ id:'DEMO-A-SCRAM', p:1, tag:'SCRAM', msg:'AUTO-SCRAM: Core temp exceeded trip limit 1195°C', acked:false, ts:ts() }});
         addAIMessage('🚨 AUTOMATIC SCRAM EXECUTED by Reactor Protection System. Core temp: ' + DAO._s.CORE_TEMP.v.toFixed(1) + '°C exceeded 1195°C setpoint. All control rods inserting. Shutdown initiated.');
-        showDemoBar('✅ AUTO-SCRAM EXECUTED — Reactor Protection System actuated', '#20c060');
+        showDemoBar('✅ AUTO-SCRAM EXECUTED — Reactor Protection System actuated', '#159647');
         this.stop();
         return;
       }
@@ -310,7 +310,7 @@ const ScenarioEngine = {
     dispatch('SET_DEMO_MODE', { active:true });
     dispatch('LOG', { msg:'DEMO SCENARIO B: LOCA initiated' });
 
-    showDemoBar('SCENARIO B — LOCA: Pump-A bearing seizure detected', '#ff2020');
+    showDemoBar('SCENARIO B — LOCA: Pump-A bearing seizure detected', '#e31a1a');
     this.startCountdown(180);
 
     // Immediate pump failure
@@ -322,7 +322,7 @@ const ScenarioEngine = {
     addAIMessage('🚨 LOCA DETECTED: Pump-A catastrophic bearing failure. Loop-A primary flow: 0%. Single-pump operation on Pump-B. Core thermal margins reducing rapidly — recommend SCRAM within 60 seconds.');
 
     const su = document.getElementById('sidebar-unit-state');
-    if (su) { su.textContent = 'Unit 4: LOCA ACTIVE'; su.style.color = '#ff2020'; }
+    if (su) { su.textContent = 'Unit 4: LOCA ACTIVE'; su.style.color = '#e31a1a'; }
 
     this._t(() => {
       addAIMessage('⚠ Primary flow at 48% nominal. Lo-Flow trip threshold breached. Natural circulation establishing. Core heat removal degrading — MANUAL SCRAM STRONGLY ADVISED.');
@@ -345,7 +345,7 @@ const ScenarioEngine = {
       if (step === 6) {
         dispatch('ADD_ALARM', { alarm:{ id:'DEMO-B03', p:1, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(0)}°C rising rapidly`, acked:false, ts:ts() }});
         addAIMessage('🚨 CORE TEMP: ' + DAO._s.CORE_TEMP.v.toFixed(1) + '°C · Rate: +' + (7+step*.6).toFixed(0) + '°C/min. Pump-B overloaded at 118% rated. Risk of second pump failure. SCRAM AND DEPRESSURIZE NOW.');
-        showDemoBar('🚨 P1 LOCA — Core temp ' + DAO._s.CORE_TEMP.v.toFixed(0) + '°C rising — SCRAM REQUIRED', '#ff2020');
+        showDemoBar('🚨 P1 LOCA — Core temp ' + DAO._s.CORE_TEMP.v.toFixed(0) + '°C rising — SCRAM REQUIRED', '#e31a1a');
         this.startCountdown(120);
       }
 
@@ -354,7 +354,7 @@ const ScenarioEngine = {
         dispatch('SCRAM');
         dispatch('ADD_ALARM', { alarm:{ id:'DEMO-B-SCRAM', p:1, tag:'SCRAM', msg:'AUTO-SCRAM: Core temp/flow trip actuated by RPS', acked:false, ts:ts() }});
         addAIMessage('🚨 REACTOR PROTECTION SYSTEM ACTUATED. Core temp ' + DAO._s.CORE_TEMP.v.toFixed(1) + '°C, primary flow < 40% nominal. All control rods inserting. Passive lead cooling: ACTIVATED.');
-        showDemoBar('✅ RPS SCRAM EXECUTED — Passive lead cooling now active', '#20c060');
+        showDemoBar('✅ RPS SCRAM EXECUTED — Passive lead cooling now active', '#159647');
         this.stop();
         return;
       }
@@ -373,11 +373,11 @@ const ScenarioEngine = {
     dispatch('SET_DEMO_MODE', { active:true });
     dispatch('LOG', { msg:'DEMO SCENARIO C: Station Blackout initiated' });
 
-    showDemoBar('SCENARIO C — STATION BLACKOUT: Total AC power loss · EDG starting', '#ff2020');
+    showDemoBar('SCENARIO C — STATION BLACKOUT: Total AC power loss · EDG starting', '#e31a1a');
     this.startCountdown(120);
 
     const su = document.getElementById('sidebar-unit-state');
-    if (su) { su.textContent = 'Unit 4: BLACKOUT'; su.style.color = '#ff2020'; }
+    if (su) { su.textContent = 'Unit 4: BLACKOUT'; su.style.color = '#e31a1a'; }
 
     // Immediate simultaneous failures
     [
@@ -408,7 +408,7 @@ const ScenarioEngine = {
       if (step === 3) {
         addAIMessage('⚠ EDG-1 START FAILURE. EDG-2 attempt in progress. Natural circulation in primary loop — passive lead flow rate: 12% nominal. Decay heat accumulation: CRITICAL CONCERN.');
         dispatch('ADD_ALARM', { alarm:{ id:'DEMO-C05', p:1, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(0)}°C — decay heat accumulating`, acked:false, ts:ts() }});
-        showDemoBar('🚨 EDG FAILURE — Decay heat accumulating — SCRAM IMMINENT', '#ff2020');
+        showDemoBar('🚨 EDG FAILURE — Decay heat accumulating — SCRAM IMMINENT', '#e31a1a');
         this.startCountdown(60);
       }
 
@@ -422,9 +422,9 @@ const ScenarioEngine = {
         dispatch('SCRAM');
         dispatch('ADD_ALARM', { alarm:{ id:'DEMO-C-SCRAM', p:1, tag:'SCRAM', msg:'PASSIVE SCRAM: Gravity-drop rods by SCRAM bus undervoltage', acked:false, ts:ts() }});
         addAIMessage('✅ PASSIVE SCRAM COMPLETE. Gravity-drop control rods fully inserted. Decay heat removal via passive lead-bismuth convection. Core temp trending toward stable. Plant in SAFE SHUTDOWN state.');
-        showDemoBar('✅ PASSIVE SCRAM & SAFE SHUTDOWN — Passive LBE cooling active', '#20c060');
+        showDemoBar('✅ PASSIVE SCRAM & SAFE SHUTDOWN — Passive LBE cooling active', '#159647');
         const su2 = document.getElementById('sidebar-unit-state');
-        if (su2) { su2.textContent = 'Unit 4: Safe Shutdown'; su2.style.color = '#ffd020'; }
+        if (su2) { su2.textContent = 'Unit 4: Safe Shutdown'; su2.style.color = '#d97d06'; }
         this.stop();
         return;
       }
@@ -473,8 +473,8 @@ function renderPanels(s) {
   document.querySelectorAll('.nav-s, .nav-t').forEach(b => {
     const match = b.getAttribute('data-panel') === s.activePanel;
     b.classList.toggle('active', match);
-    if (!match) b.classList.add('text-[#4a5260]','border-transparent');
-    else        b.classList.remove('text-[#4a5260]','border-transparent');
+    if (!match) b.classList.add('text-[#6c757d]','border-transparent');
+    else        b.classList.remove('text-[#6c757d]','border-transparent');
   });
 }
 
@@ -484,8 +484,8 @@ function renderAlarmBanner(s) {
   if (s.bannerOn && active.length > 0) {
     banner.style.height = '2.25rem';
     const top = active.reduce((a,b) => a.p < b.p ? a : b);
-    const col   = top.p===1?'#ff2020':top.p===2?'#ffd020':'#ff8020';
-    const bg    = top.p===1?'#160404':top.p===2?'#161300':'#160900';
+    const col   = top.p===1?'#e31a1a':top.p===2?'#d97d06':'#cd5c08';
+    const bg    = top.p===1?'#fcdcdc':top.p===2?'#fcecd5':'#fce3d5';
     document.getElementById('alarm-inner').style.background = bg;
     document.getElementById('alarm-icon').style.color = col;
     document.getElementById('alarm-text').style.color = col;
@@ -517,7 +517,7 @@ function renderHUD(s) {
     const bar = document.getElementById('margin-bar');
     if (bar) {
       bar.style.width = pct + '%';
-      bar.style.background = margin < 0.2 ? '#ff2020' : margin < 0.35 ? '#ffd020' : '#20c060';
+      bar.style.background = margin < 0.2 ? '#e31a1a' : margin < 0.35 ? '#d97d06' : '#159647';
     }
     setText('margin-pct', pct + '%');
   }
@@ -528,7 +528,7 @@ function renderHUD(s) {
     const pb = document.getElementById('power-bar');
     if (pb) {
       pb.style.width = pwr.toFixed(1) + '%';
-      pb.style.background = pwr < 50 ? '#ff2020' : pwr < 80 ? '#ffd020' : '#20c060';
+      pb.style.background = pwr < 50 ? '#e31a1a' : pwr < 80 ? '#d97d06' : '#159647';
     }
     setText('power-pct', pwr.toFixed(1) + '%');
   }
@@ -542,17 +542,17 @@ function renderSystemHealth(s) {
   if (!sl || !sd) return;
 
   if (s.scramActive) {
-    sl.textContent = 'SCRAM ENGAGED';  sl.style.color = '#ff2020';
-    sd.style.background = '#ff2020';
+    sl.textContent = 'SCRAM ENGAGED';  sl.style.color = '#e31a1a';
+    sd.style.background = '#e31a1a';
   } else if (p1count > 0) {
-    sl.textContent = `${p1count} P1 ALARM${p1count>1?'S':''}`;  sl.style.color = '#ff2020';
-    sd.style.background = '#ff2020'; sd.style.animation = 'blink 1s infinite';
+    sl.textContent = `${p1count} P1 ALARM${p1count>1?'S':''}`;  sl.style.color = '#e31a1a';
+    sd.style.background = '#e31a1a'; sd.style.animation = 'blink 1s infinite';
   } else if (alarmCount > 0) {
-    sl.textContent = `${alarmCount} ALARM${alarmCount>1?'S':''}`;  sl.style.color = '#ffd020';
-    sd.style.background = '#ffd020'; sd.style.animation = '';
+    sl.textContent = `${alarmCount} ALARM${alarmCount>1?'S':''}`;  sl.style.color = '#d97d06';
+    sd.style.background = '#d97d06'; sd.style.animation = '';
   } else {
-    sl.textContent = 'SYSTEM READY';  sl.style.color = '#7a8590';
-    sd.style.background = '#20c060'; sd.style.animation = '';
+    sl.textContent = 'SYSTEM READY';  sl.style.color = '#343a40';
+    sd.style.background = '#159647'; sd.style.animation = '';
   }
 }
 
@@ -578,26 +578,26 @@ function renderCyberPanel(s) {
     // Jitter load values slightly for live feel
     nodesEl.innerHTML = nodes.map(n => {
       const isOnline = n.status === 'ONLINE';
-      const col      = isOnline ? '#20c060' : '#ff2020';
+      const col      = isOnline ? '#159647' : '#e31a1a';
       const loadVal  = isOnline ? Math.max(1, n.load + Math.floor((Math.random()-.5)*5)) : 0;
       const loadBar  = isOnline ? `
-        <div style="width:80px;height:3px;background:#0f1114;margin-top:4px;">
-          <div style="width:${loadVal}%;height:100%;background:${loadVal>70?'#ffd020':'#5a6573'};
+        <div style="width:80px;height:3px;background:#f4f6f8;margin-top:4px;">
+          <div style="width:${loadVal}%;height:100%;background:${loadVal>70?'#d97d06':'#495057'};
                       transition:width .8s ease;"></div>
         </div>` : '';
       return `<div style="display:flex;align-items:center;justify-content:space-between;
-                           padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+                           padding:8px 0;border-bottom:1px solid rgba(0,0,0,.04);">
         <div>
           <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
-                      color:#7a8590;text-transform:uppercase;">${n.id}</div>
-          <div style="font-family:'Courier New',monospace;font-size:10px;color:#4a5260;
+                      color:#343a40;text-transform:uppercase;">${n.id}</div>
+          <div style="font-family:'Courier New',monospace;font-size:10px;color:#6c757d;
                       margin-top:2px;">${n.label}</div>
           ${loadBar}
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:12px;">
           <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
                       color:${col};">${n.status}</div>
-          <div style="font-family:'Courier New',monospace;font-size:9px;color:#4a5260;
+          <div style="font-family:'Courier New',monospace;font-size:9px;color:#6c757d;
                       margin-top:2px;">${n.latency} · ${loadVal > 0 ? loadVal+'% CPU' : '—'}</div>
         </div>
       </div>`;
@@ -620,12 +620,12 @@ function renderCyberPanel(s) {
       { ts:'06:55:00', sev:'INFO',  msg:'System boot — CORE-SENTINEL v4.2 · IAEA compliant' },
     ];
     logEl.innerHTML = entries.map(e => {
-      const col = e.sev === 'WARN' ? '#ffd020' : '#4a5260';
-      return `<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);">
-        <span style="font-family:'Courier New',monospace;font-size:9px;color:#3a4050;flex-shrink:0;">${e.ts}</span>
+      const col = e.sev === 'WARN' ? '#d97d06' : '#6c757d';
+      return `<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid rgba(0,0,0,.04);">
+        <span style="font-family:'Courier New',monospace;font-size:9px;color:#adb5bd;flex-shrink:0;">${e.ts}</span>
         <span style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;
                      color:${col};flex-shrink:0;min-width:30px;">${e.sev}</span>
-        <span style="font-family:'Courier New',monospace;font-size:9px;color:#5a6573;">${e.msg}</span>
+        <span style="font-family:'Courier New',monospace;font-size:9px;color:#495057;">${e.msg}</span>
       </div>`;
     }).join('');
   }
@@ -646,12 +646,12 @@ function renderCyberPanel(s) {
     ];
     encEl.innerHTML = suites.map(suite => `
       <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);">
-        <div style="font-family:'Courier New',monospace;font-size:9px;color:#4a5260;">${suite.label}</div>
+                  padding:6px 0;border-bottom:1px solid rgba(0,0,0,.04);">
+        <div style="font-family:'Courier New',monospace;font-size:9px;color:#6c757d;">${suite.label}</div>
         <div style="text-align:right;">
-          <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;color:#7a8590;">
+          <div style="font-family:'Courier New',monospace;font-size:9px;font-weight:700;color:#343a40;">
             ${suite.val}</div>
-          <div style="font-family:'Courier New',monospace;font-size:8px;color:#20c060;
+          <div style="font-family:'Courier New',monospace;font-size:8px;color:#159647;
                       text-transform:uppercase;">${suite.status}</div>
         </div>
       </div>`).join('');
@@ -685,10 +685,10 @@ function renderAuditPanel(s) {
   const list = document.getElementById('audit-list');
   if (list) {
     list.innerHTML = [...s.auditLog].reverse().map(e =>
-      `<div class="flex gap-2 py-1 border-b border-[rgba(255,255,255,.04)]">
-        <span class="text-[#4a5260] shrink-0">${e.ts}</span>
-        <span class="text-[9px] text-[#5a6573] shrink-0 uppercase">[${e.role||'SYS'}]</span>
-        <span class="text-[#7a8590]">${e.msg}</span>
+      `<div class="flex gap-2 py-1 border-b border-[rgba(0,0,0,.04)]">
+        <span class="text-[#6c757d] shrink-0">${e.ts}</span>
+        <span class="text-[9px] text-[#495057] shrink-0 uppercase">[${e.role||'SYS'}]</span>
+        <span class="text-[#343a40]">${e.msg}</span>
       </div>`
     ).join('');
   }
@@ -699,9 +699,9 @@ function renderSafetyPanel(s) {
   const lock  = document.getElementById('safety-lock');
   if (badge) {
     if (s.role==='OD'||s.role==='AS') {
-      badge.textContent=`ACCESS GRANTED — ${s.role}`; badge.style.color='#20c060'; badge.style.borderColor='#20c06033';
+      badge.textContent=`ACCESS GRANTED — ${s.role}`; badge.style.color='#159647'; badge.style.borderColor='#15964733';
     } else {
-      badge.textContent='MONITORING ONLY — OL'; badge.style.color='#ffd020'; badge.style.borderColor='#ffd02033';
+      badge.textContent='MONITORING ONLY — OL'; badge.style.color='#d97d06'; badge.style.borderColor='#d97d0633';
     }
   }
   if (lock) lock.style.display = (s.role==='OL') ? 'flex' : 'none';
@@ -712,10 +712,10 @@ function renderSafetyPanel(s) {
     const avgPos = s.sensors.ROD_POS?.v ?? 72;
     rt.innerHTML = s.controlRods.map(r => {
       const pos = s.scramActive ? Math.min(100, r.pos + avgPos * 0.1 + 15) : r.pos + (avgPos - 72) * 0.2;
-      const col = pos > 85 ? '#ffd020' : pos < 20 ? '#ff2020' : '#7a8590';
+      const col = pos > 85 ? '#d97d06' : pos < 20 ? '#e31a1a' : '#343a40';
       return `<div class="flex items-center gap-2 tv text-[10px] mb-1.5">
-        <span class="w-14 font-bold text-[#7a8590] shrink-0">${r.id}</span>
-        <div class="flex-1 h-1.5 bg-[#0f1114]">
+        <span class="w-14 font-bold text-[#343a40] shrink-0">${r.id}</span>
+        <div class="flex-1 h-1.5 bg-[#f4f6f8]">
           <div class="h-full transition-all duration-700" style="width:${Math.min(100,pos).toFixed(0)}%;background:${col}"></div>
         </div>
         <span class="w-12 text-right font-bold shrink-0" style="color:${col}">${Math.min(100,pos).toFixed(1)}%</span>
@@ -726,11 +726,11 @@ function renderSafetyPanel(s) {
   const it = document.getElementById('interlock-table');
   if (it && s.interlocks) {
     it.innerHTML = s.interlocks.map(i => {
-      const c = i.st==='OFFLINE'?'#4a5260':i.st==='TRIPPED'?'#ff2020':'#20c060';
-      return `<div class="flex items-center justify-between py-2 border-b border-[rgba(255,255,255,.04)]">
+      const c = i.st==='OFFLINE'?'#6c757d':i.st==='TRIPPED'?'#e31a1a':'#159647';
+      return `<div class="flex items-center justify-between py-2 border-b border-[rgba(0,0,0,.04)]">
         <div>
-          <div class="tv text-[10px] font-bold text-[#e0e4e8]">${i.label}</div>
-          <div class="tv text-[9px] text-[#4a5260]">${i.tag} · SP: ${i.sp}</div>
+          <div class="tv text-[10px] font-bold text-[#212529]">${i.label}</div>
+          <div class="tv text-[9px] text-[#6c757d]">${i.tag} · SP: ${i.sp}</div>
         </div>
         <span class="tv text-[9px] font-bold px-1.5 py-0.5 shrink-0" style="color:${c};border:1px solid ${c}33">${i.st}</span>
       </div>`;
@@ -738,7 +738,7 @@ function renderSafetyPanel(s) {
   }
 
   const ss = document.getElementById('scram-status');
-  if (ss) { ss.textContent = s.scramActive ? 'SCRAM ENGAGED' : 'ARMED / READY'; ss.style.color = s.scramActive ? '#ff2020' : '#20c060'; }
+  if (ss) { ss.textContent = s.scramActive ? 'SCRAM ENGAGED' : 'ARMED / READY'; ss.style.color = s.scramActive ? '#e31a1a' : '#159647'; }
 }
 
 function renderSecondaryStats(s) {
@@ -747,22 +747,22 @@ function renderSecondaryStats(s) {
   el.innerHTML = '';
   const ss = s.sensors;
   [
-    { label:'SG Inlet Temperature', k:'SG_INLET',   pct:pct(ss.SG_INLET?.v,  420,550), col:'#ff8020' },
-    { label:'Steam Pressure',       k:'STEAM_PRESS', pct:pct(ss.STEAM_PRESS?.v,130,180),col:'#7a8590' },
-    { label:'Turbine Speed',        k:'TURBINE_RPM', pct:pct(ss.TURBINE_RPM?.v,2800,3200),col:'#20c060'},
-    { label:'Grid Output',          k:'GRID_OUT',    pct:pct(ss.GRID_OUT?.v,  400,500), col:'#20c060' },
-    { label:'Pump B Speed',         k:'PUMP_B',      pct:pct(ss.PUMP_B?.v,    2800,3600),col:'#20c060'},
-    { label:'Secondary Flow',       k:'SEC_FLOW',    pct:pct(ss.SEC_FLOW?.v,  2400,3200),col:'#7a8590'},
+    { label:'SG Inlet Temperature', k:'SG_INLET',   pct:pct(ss.SG_INLET?.v,  420,550), col:'#cd5c08' },
+    { label:'Steam Pressure',       k:'STEAM_PRESS', pct:pct(ss.STEAM_PRESS?.v,130,180),col:'#343a40' },
+    { label:'Turbine Speed',        k:'TURBINE_RPM', pct:pct(ss.TURBINE_RPM?.v,2800,3200),col:'#159647'},
+    { label:'Grid Output',          k:'GRID_OUT',    pct:pct(ss.GRID_OUT?.v,  400,500), col:'#159647' },
+    { label:'Pump B Speed',         k:'PUMP_B',      pct:pct(ss.PUMP_B?.v,    2800,3600),col:'#159647'},
+    { label:'Secondary Flow',       k:'SEC_FLOW',    pct:pct(ss.SEC_FLOW?.v,  2400,3200),col:'#343a40'},
   ].forEach(st => {
     const sr = ss[st.k];
     const val = sr ? DAO.fmt(sr) : '--';
     const unit = sr?.u ?? '';
     const isAlarm = sr && DAO.status(sr) === 'alarm';
-    el.innerHTML += `<div class="bg-[#0f1114] border ${isAlarm?'border-[#ff2020]/30':'border-[rgba(255,255,255,.06)]'} p-3 mb-2">
-      <div class="tv text-[9px] text-[#4a5260] uppercase tracking-wider font-bold">${st.label}</div>
-      <div class="tv text-xl font-bold mt-0.5" style="color:${isAlarm?'#ff2020':'#e0e4e8'}">${val} <span class="text-xs font-normal text-[#4a5260]">${unit}</span></div>
-      <div class="w-full h-1 bg-[#22262b] mt-2">
-        <div class="h-full transition-all duration-1000" style="width:${Math.min(100,Math.max(0,st.pct)).toFixed(0)}%;background:${isAlarm?'#ff2020':st.col}"></div>
+    el.innerHTML += `<div class="bg-[#f4f6f8] border ${isAlarm?'border-[#e31a1a]/30':'border-[rgba(0,0,0,.06)]'} p-3 mb-2">
+      <div class="tv text-[9px] text-[#6c757d] uppercase tracking-wider font-bold">${st.label}</div>
+      <div class="tv text-xl font-bold mt-0.5" style="color:${isAlarm?'#e31a1a':'#212529'}">${val} <span class="text-xs font-normal text-[#6c757d]">${unit}</span></div>
+      <div class="w-full h-1 bg-[#d1d6dc] mt-2">
+        <div class="h-full transition-all duration-1000" style="width:${Math.min(100,Math.max(0,st.pct)).toFixed(0)}%;background:${isAlarm?'#e31a1a':st.col}"></div>
       </div>
       </div>
     </div>`;
@@ -776,13 +776,13 @@ function renderSecondaryStats(s) {
 
     if (s.scramActive) {
       secStatus.textContent = 'LOOP STATUS: SCRAM ISOLATION';
-      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#ff2020]/30 bg-[#ff2020]/5 text-[#ff2020] font-bold uppercase tracking-wider';
+      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#e31a1a]/30 bg-[#e31a1a]/5 text-[#e31a1a] font-bold uppercase tracking-wider';
     } else if (isSecAlarm) {
       secStatus.textContent = 'LOOP STATUS: ALARM DEVIATION';
-      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#ff8020]/30 bg-[#ff8020]/5 text-[#ff8020] font-bold uppercase tracking-wider blink';
+      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#cd5c08]/30 bg-[#cd5c08]/5 text-[#cd5c08] font-bold uppercase tracking-wider blink';
     } else {
       secStatus.textContent = 'LOOP STATUS: NOMINAL';
-      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#20c060]/30 bg-[#20c060]/5 text-[#20c060] font-bold uppercase tracking-wider';
+      secStatus.className = 'tv text-[9px] px-2 py-1 border border-[#159647]/30 bg-[#159647]/5 text-[#159647] font-bold uppercase tracking-wider';
     }
   }
 
@@ -801,21 +801,21 @@ function renderDiagnostics(s) {
   );
   setText('diag-count', `${sensors.length} of ${Object.keys(s.sensors).length} sensors`);
   const now = ts();
-  const scol = { alarm:'#ff2020', warning:'#ffd020', low:'#ff8020', nominal:'#20c060' };
+  const scol = { alarm:'#e31a1a', warning:'#d97d06', low:'#cd5c08', nominal:'#159647' };
   const slbl = { alarm:'ALARM', warning:'WARN', low:'LOW', nominal:'NOM' };
   tbody.innerHTML = sensors.map(sr => {
     const st = DAO.status(sr);
     const c  = scol[st];
     const rb = st==='alarm'?'rgba(255,32,32,.05)':st==='warning'?'rgba(255,208,32,.04)':'';
     return `<tr class="sr" style="${rb?`background:${rb}`:''}">
-      <td class="px-5 py-2 tv font-bold text-[#e0e4e8]">${sr.tag}</td>
-      <td class="px-3 py-2 tv text-[#4a5260] text-[10px]">${sr.label}</td>
-      <td class="px-3 py-2 tv text-[#4a5260] text-[10px] uppercase">${sr.sys}</td>
+      <td class="px-5 py-2 tv font-bold text-[#212529]">${sr.tag}</td>
+      <td class="px-3 py-2 tv text-[#6c757d] text-[10px]">${sr.label}</td>
+      <td class="px-3 py-2 tv text-[#6c757d] text-[10px] uppercase">${sr.sys}</td>
       <td class="px-3 py-2 tv text-right font-bold" style="color:${c}">${DAO.fmt(sr)}</td>
-      <td class="px-3 py-2 tv text-right text-[#4a5260] text-[10px]">${sr.u}</td>
-      <td class="px-3 py-2 tv text-right text-[#4a5260] text-[10px]">${sr.trip}</td>
+      <td class="px-3 py-2 tv text-right text-[#6c757d] text-[10px]">${sr.u}</td>
+      <td class="px-3 py-2 tv text-right text-[#6c757d] text-[10px]">${sr.trip}</td>
       <td class="px-3 py-2 tv text-center"><span class="text-[9px] font-bold px-1.5 py-0.5" style="color:${c};border:1px solid ${c}40">${slbl[st]}</span></td>
-      <td class="px-5 py-2 tv text-right text-[#4a5260] text-[9px]">${now}</td>
+      <td class="px-5 py-2 tv text-right text-[#6c757d] text-[9px]">${now}</td>
     </tr>`;
   }).join('');
 }
@@ -825,12 +825,12 @@ function renderAIPredictions(s) {
   if (!el) return;
   const ss = s.sensors;
   el.innerHTML = [
-    { label:'Core Temp',     val:`${((ss.CORE_TEMP?.v||1045)+8.4).toFixed(1)} °C`,   col:'#7a8590' },
-    { label:'Primary Press', val:`${((ss.PRIM_PRESS?.v||215)+12.1).toFixed(1)} PSI`, col:'#ffd020' },
-    { label:'Neutron Flux',  val:'Stable ±0.1%',                                      col:'#7a8590' },
-    { label:'Grid Output',   val:`${((ss.GRID_OUT?.v||478)+1.6).toFixed(1)} MWe`,    col:'#20c060' },
-  ].map(p => `<div class="flex items-center justify-between py-1.5 border-b border-[rgba(255,255,255,.06)]">
-    <span class="tv text-[10px] text-[#4a5260]">${p.label}</span>
+    { label:'Core Temp',     val:`${((ss.CORE_TEMP?.v||1045)+8.4).toFixed(1)} °C`,   col:'#343a40' },
+    { label:'Primary Press', val:`${((ss.PRIM_PRESS?.v||215)+12.1).toFixed(1)} PSI`, col:'#d97d06' },
+    { label:'Neutron Flux',  val:'Stable ±0.1%',                                      col:'#343a40' },
+    { label:'Grid Output',   val:`${((ss.GRID_OUT?.v||478)+1.6).toFixed(1)} MWe`,    col:'#159647' },
+  ].map(p => `<div class="flex items-center justify-between py-1.5 border-b border-[rgba(0,0,0,.06)]">
+    <span class="tv text-[10px] text-[#6c757d]">${p.label}</span>
     <span class="tv text-[10px] font-bold" style="color:${p.col}">${p.val}</span>
   </div>`).join('');
 }
@@ -840,15 +840,15 @@ function renderAnomalyList(s) {
   if (!el) return;
   const active = s.alarms.filter(a => !a.acked).slice(0, 5);
   if (!active.length) {
-    el.innerHTML = '<div class="tv text-[10px] text-[#4a5260] italic">No active anomalies</div>';
+    el.innerHTML = '<div class="tv text-[10px] text-[#6c757d] italic">No active anomalies</div>';
     return;
   }
   el.innerHTML = active.map(a => {
-    const col = a.p===1?'#ff2020':a.p===2?'#ffd020':'#ff8020';
+    const col = a.p===1?'#e31a1a':a.p===2?'#d97d06':'#cd5c08';
     return `<div class="p-3 border border-l-4 space-y-0.5 mb-2" style="border-color:${col}33;border-left-color:${col};background:${col}09">
       <div class="tv text-[9px] font-bold uppercase" style="color:${col}">P${a.p} — ${a.tag}</div>
-      <div class="tv text-[10px] text-[#e0e4e8]">${a.msg}</div>
-      <div class="tv text-[9px] text-[#4a5260]">${a.ts}</div>
+      <div class="tv text-[10px] text-[#212529]">${a.msg}</div>
+      <div class="tv text-[9px] text-[#6c757d]">${a.ts}</div>
     </div>`;
   }).join('');
 }
@@ -862,22 +862,22 @@ function renderCopilotSteps(s) {
     {n:3, title:'Adjust Control Rod Depth',  desc:'Pending: awaiting step 2 completion',             btn:true },
     {n:4, title:'Verify Thermal Balance',    desc:'Automated check — T+3 min',                       btn:false},
   ];
-  el.innerHTML = `<div class="tv text-[9px] text-[#4a5260] uppercase tracking-widest mb-2">Protocol SCCP-74A</div>` +
+  el.innerHTML = `<div class="tv text-[9px] text-[#6c757d] uppercase tracking-widest mb-2">Protocol SCCP-74A</div>` +
     STEPS.map(st => {
       const done=st.n<s.protocolStep, active=st.n===s.protocolStep, pending=st.n>s.protocolStep;
-      const cls = done   ? 'flex gap-2 p-2.5 bg-[#20c060]/5 border-l-2 border-[#20c060] mb-2'
-                : active ? 'flex gap-2 p-2.5 bg-[#22262b] border-l-4 border-[#5a6573] mb-2'
+      const cls = done   ? 'flex gap-2 p-2.5 bg-[#159647]/5 border-l-2 border-[#159647] mb-2'
+                : active ? 'flex gap-2 p-2.5 bg-[#d1d6dc] border-l-4 border-[#495057] mb-2'
                 :          'flex gap-2 p-2.5 mb-2 opacity-40';
       const num = done
-        ? `<div class="w-5 h-5 rounded-full border border-[#20c060] text-[#20c060] flex items-center justify-center flex-shrink-0"><span class="ms material-symbols-outlined text-[11px]">check</span></div>`
-        : `<div class="w-5 h-5 rounded-full border ${active?'border-[#5a6573] text-[#7a8590]':'border-[#3a4050] text-[#3a4050]'} flex items-center justify-center flex-shrink-0 tv text-[10px] font-bold">${st.n}</div>`;
+        ? `<div class="w-5 h-5 rounded-full border border-[#159647] text-[#159647] flex items-center justify-center flex-shrink-0"><span class="ms material-symbols-outlined text-[11px]">check</span></div>`
+        : `<div class="w-5 h-5 rounded-full border ${active?'border-[#495057] text-[#343a40]':'border-[#adb5bd] text-[#adb5bd]'} flex items-center justify-center flex-shrink-0 tv text-[10px] font-bold">${st.n}</div>`;
       const ackBtn = (active && st.btn)
-        ? `<button class="copilot-ack mt-1.5 tv text-[9px] px-2 py-0.5 bg-[#22262b] hover:bg-[#2a2f36] border border-[rgba(255,255,255,.1)] font-bold uppercase tracking-wider transition-colors">ACKNOWLEDGE STEP</button>`
+        ? `<button class="copilot-ack mt-1.5 tv text-[9px] px-2 py-0.5 bg-[#d1d6dc] hover:bg-[#ced4da] border border-[rgba(0,0,0,.1)] font-bold uppercase tracking-wider transition-colors">ACKNOWLEDGE STEP</button>`
         : '';
       return `<div class="${cls}">${num}
         <div class="flex-1">
-          <div class="tv text-[10px] font-bold uppercase text-[#e0e4e8]">${st.title}</div>
-          <div class="tv text-[9px] text-[#4a5260] italic mt-0.5">${st.desc}</div>
+          <div class="tv text-[10px] font-bold uppercase text-[#212529]">${st.title}</div>
+          <div class="tv text-[9px] text-[#6c757d] italic mt-0.5">${st.desc}</div>
           ${ackBtn}
         </div>
       </div>`;
@@ -956,8 +956,8 @@ function initThreeJS() {
   function setCam(mode) {
     activeCam = mode==='persp' ? perspCam : orthoCam;
     const pe=document.getElementById('btn-persp'), oe=document.getElementById('btn-ortho');
-    const act='tv text-[9px] px-2 py-1 border border-[rgba(255,255,255,.1)] font-bold bg-[#e0e4e8] text-[#0f1114]';
-    const inact='tv text-[9px] px-2 py-1 border border-[rgba(255,255,255,.1)] font-bold bg-[#22262b] text-[#7a8590] hover:bg-[#2a2f36]';
+    const act='tv text-[9px] px-2 py-1 border border-[rgba(0,0,0,.1)] font-bold bg-[#212529] text-[#f4f6f8]';
+    const inact='tv text-[9px] px-2 py-1 border border-[rgba(0,0,0,.1)] font-bold bg-[#d1d6dc] text-[#343a40] hover:bg-[#ced4da]';
     if(pe) pe.className=mode==='persp'?act:inact;
     if(oe) oe.className=mode==='ortho'?act:inact;
     dispatch('LOG',{msg:`Digital Twin camera: ${mode.toUpperCase()}`});
@@ -1024,7 +1024,7 @@ function showDemoBar(msg, col) {
   const inner = document.getElementById('demo-inner');
   if (!bar || !inner) return;
   bar.style.height = '2.5rem';
-  const bg = col==='#ff2020'?'#160404':col==='#20c060'?'#03140a':col==='#ffd020'?'#141000':'#100c00';
+  const bg = col==='#e31a1a'?'#fcdcdc':col==='#159647'?'#03140a':col==='#d97d06'?'#141000':'#100c00';
   inner.style.background = bg;
   inner.style.borderColor = col + '40';
   setText('demo-bar-text', msg);
@@ -1081,22 +1081,22 @@ function bindAll() {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
           <div>
             <div style="font-family:'Courier New',monospace;font-size:10px;
-                        color:#e0e4e8;font-weight:700;margin-bottom:8px;
-                        border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px;">
+                        color:#212529;font-weight:700;margin-bottom:8px;
+                        border-bottom:1px solid rgba(0,0,0,.08);padding-bottom:4px;">
               LOCAL OPERATOR — OL</div>
             ${renderRoleSummary('OL')}
           </div>
           <div>
             <div style="font-family:'Courier New',monospace;font-size:10px;
-                        color:#e0e4e8;font-weight:700;margin-bottom:8px;
-                        border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px;">
+                        color:#212529;font-weight:700;margin-bottom:8px;
+                        border-bottom:1px solid rgba(0,0,0,.08);padding-bottom:4px;">
               DIAGNOSTIC OPERATOR — OD</div>
             ${renderRoleSummary('OD')}
           </div>
           <div>
             <div style="font-family:'Courier New',monospace;font-size:10px;
-                        color:#e0e4e8;font-weight:700;margin-bottom:8px;
-                        border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:4px;">
+                        color:#212529;font-weight:700;margin-bottom:8px;
+                        border-bottom:1px solid rgba(0,0,0,.08);padding-bottom:4px;">
               SYSTEM ADMIN — AS</div>
             ${renderRoleSummary('AS')}
           </div>
@@ -1134,20 +1134,20 @@ function bindAll() {
         icon: 'lock',
         title: 'Access Denied — Emergency Simulator',
         content: `<div class="tv text-sm space-y-3">
-          <div style="color:#ff2020;font-weight:700;font-size:12px;padding:10px;
+          <div style="color:#e31a1a;font-weight:700;font-size:12px;padding:10px;
                       border:1px solid rgba(255,32,32,.2);background:rgba(255,32,32,.05);">
             PERMISSION DENIED — CMP-22
           </div>
-          <p style="color:#7a8590;font-size:11px;">
-            The Emergency Scenario Simulator requires <strong style="color:#e0e4e8;">Diagnostic Operator (OD)</strong>
-            or <strong style="color:#e0e4e8;">System Admin (AS)</strong> role.<br/>
-            Current role: <strong style="color:#ffd020;">OL</strong> — Read-only monitoring only.
+          <p style="color:#343a40;font-size:11px;">
+            The Emergency Scenario Simulator requires <strong style="color:#212529;">Diagnostic Operator (OD)</strong>
+            or <strong style="color:#212529;">System Admin (AS)</strong> role.<br/>
+            Current role: <strong style="color:#d97d06;">OL</strong> — Read-only monitoring only.
           </p>
-          <div style="font-family:'Courier New',monospace;font-size:9px;color:#4a5260;
-                      border:1px solid rgba(255,255,255,.08);padding:8px;">
-            CMP-22 Access Matrix: OL=<span style="color:#3a4050;">X</span> ·
-            OD=<span style="color:#20c060;">R/U</span> ·
-            AS=<span style="color:#20c060;">C/R/U/D</span>
+          <div style="font-family:'Courier New',monospace;font-size:9px;color:#6c757d;
+                      border:1px solid rgba(0,0,0,.08);padding:8px;">
+            CMP-22 Access Matrix: OL=<span style="color:#adb5bd;">X</span> ·
+            OD=<span style="color:#159647;">R/U</span> ·
+            AS=<span style="color:#159647;">C/R/U/D</span>
           </div>
         </div>`,
       });
@@ -1157,34 +1157,34 @@ function bindAll() {
       icon: 'science',
       title: 'Emergency Scenario Simulator',
       content: `<div class="tv space-y-3 text-sm">
-        <div class="p-3 border border-[#ff8020]/20 bg-[#ff8020]/5 text-[#ff8020] text-[10px] uppercase tracking-wider font-bold">
+        <div class="p-3 border border-[#cd5c08]/20 bg-[#cd5c08]/5 text-[#cd5c08] text-[10px] uppercase tracking-wider font-bold">
           ⚠ Demo Mode — Simulated Emergency Scenarios · All data is synthetic
         </div>
-        <p class="text-[#7a8590] text-xs">Select a scenario to simulate. The HMI will escalate sensor values, fire alarms, and trigger AI advisories in real time. You can SCRAM at any time (OD/AS) or let the system auto-trip.</p>
+        <p class="text-[#343a40] text-xs">Select a scenario to simulate. The HMI will escalate sensor values, fire alarms, and trigger AI advisories in real time. You can SCRAM at any time (OD/AS) or let the system auto-trip.</p>
         <div class="space-y-2 mt-3">
-          <button id="demo-btn-a" class="w-full text-left p-3 border border-[rgba(255,255,255,.1)] hover:bg-[#22262b] transition-colors group">
+          <button id="demo-btn-a" class="w-full text-left p-3 border border-[rgba(0,0,0,.1)] hover:bg-[#d1d6dc] transition-colors group">
             <div class="flex items-center gap-2">
-              <span class="tv font-bold text-[#ffd020] text-[11px] uppercase tracking-wider">Scenario A — Rising Core Temperature</span>
-              <span class="tv text-[9px] text-[#4a5260] ml-auto">~7 min to trip</span>
+              <span class="tv font-bold text-[#d97d06] text-[11px] uppercase tracking-wider">Scenario A — Rising Core Temperature</span>
+              <span class="tv text-[9px] text-[#6c757d] ml-auto">~7 min to trip</span>
             </div>
-            <p class="tv text-[11px] text-[#7a8590] mt-1">Coolant bypass valve partial closure → core temp rises → P3→P2→P1 alarms → auto-SCRAM if unchecked.</p>
+            <p class="tv text-[11px] text-[#343a40] mt-1">Coolant bypass valve partial closure → core temp rises → P3→P2→P1 alarms → auto-SCRAM if unchecked.</p>
           </button>
-          <button id="demo-btn-b" class="w-full text-left p-3 border border-[rgba(255,255,255,.1)] hover:bg-[#22262b] transition-colors group">
+          <button id="demo-btn-b" class="w-full text-left p-3 border border-[rgba(0,0,0,.1)] hover:bg-[#d1d6dc] transition-colors group">
             <div class="flex items-center gap-2">
-              <span class="tv font-bold text-[#ff8020] text-[11px] uppercase tracking-wider">Scenario B — Loss of Coolant Flow (LOCA)</span>
-              <span class="tv text-[9px] text-[#4a5260] ml-auto">~3 min to trip</span>
+              <span class="tv font-bold text-[#cd5c08] text-[11px] uppercase tracking-wider">Scenario B — Loss of Coolant Flow (LOCA)</span>
+              <span class="tv text-[9px] text-[#6c757d] ml-auto">~3 min to trip</span>
             </div>
-            <p class="tv text-[11px] text-[#7a8590] mt-1">Pump-A bearing seizure → flow loss → rapid temp rise → overloaded Pump-B → auto-SCRAM by RPS.</p>
+            <p class="tv text-[11px] text-[#343a40] mt-1">Pump-A bearing seizure → flow loss → rapid temp rise → overloaded Pump-B → auto-SCRAM by RPS.</p>
           </button>
-          <button id="demo-btn-c" class="w-full text-left p-3 border border-[rgba(255,255,255,.1)] hover:bg-[#22262b] transition-colors group">
+          <button id="demo-btn-c" class="w-full text-left p-3 border border-[rgba(0,0,0,.1)] hover:bg-[#d1d6dc] transition-colors group">
             <div class="flex items-center gap-2">
-              <span class="tv font-bold text-[#ff2020] text-[11px] uppercase tracking-wider">Scenario C — Station Blackout (SBO)</span>
-              <span class="tv text-[9px] text-[#4a5260] ml-auto">~2 min to trip</span>
+              <span class="tv font-bold text-[#e31a1a] text-[11px] uppercase tracking-wider">Scenario C — Station Blackout (SBO)</span>
+              <span class="tv text-[9px] text-[#6c757d] ml-auto">~2 min to trip</span>
             </div>
-            <p class="tv text-[11px] text-[#7a8590] mt-1">Total AC power loss → pumps coast-down → EDG failure → passive lead-bismuth cooling → passive SCRAM.</p>
+            <p class="tv text-[11px] text-[#343a40] mt-1">Total AC power loss → pumps coast-down → EDG failure → passive lead-bismuth cooling → passive SCRAM.</p>
           </button>
         </div>
-        <div class="mt-3 pt-3 border-t border-[rgba(255,255,255,.08)] text-[10px] text-[#4a5260]">
+        <div class="mt-3 pt-3 border-t border-[rgba(0,0,0,.08)] text-[10px] text-[#6c757d]">
           Tip: Switch to Safety panel to watch control rod positions and interlock status in real-time.
         </div>
       </div>`,
@@ -1208,17 +1208,17 @@ function bindAll() {
     showModal({
       icon:'account_tree', title:'System Topology — RT-SIM-04',
       content:`<div class="tv text-xs space-y-0">
-        <div class="text-[#4a5260] text-[9px] mb-3 uppercase tracking-wider">DAO Connection Map — LFR-4G Unit 4</div>
-        ${[['Node Alpha','Reactor Core / Primary Loop','ONLINE','#20c060'],
-           ['Node Beta', 'Primary Pumps A/B',         'ONLINE','#20c060'],
-           ['Node Gamma','Emergency Relief Valve',     'OFFLINE','#ff2020'],
-           ['Node Delta','Steam Generator Loop',       'ONLINE','#20c060'],
-           ['Node Epsilon','Turbine / Generator',      'ONLINE','#20c060'],
-           ['Node Zeta', 'Grid Interface',             'ONLINE','#20c060'],
-           ['Node Eta',  'Politecnico AI Physics Core','ONLINE','#20c060'],
+        <div class="text-[#6c757d] text-[9px] mb-3 uppercase tracking-wider">DAO Connection Map — LFR-4G Unit 4</div>
+        ${[['Node Alpha','Reactor Core / Primary Loop','ONLINE','#159647'],
+           ['Node Beta', 'Primary Pumps A/B',         'ONLINE','#159647'],
+           ['Node Gamma','Emergency Relief Valve',     'OFFLINE','#e31a1a'],
+           ['Node Delta','Steam Generator Loop',       'ONLINE','#159647'],
+           ['Node Epsilon','Turbine / Generator',      'ONLINE','#159647'],
+           ['Node Zeta', 'Grid Interface',             'ONLINE','#159647'],
+           ['Node Eta',  'Politecnico AI Physics Core','ONLINE','#159647'],
         ].map(([id,desc,st,col])=>`
-          <div class="flex justify-between py-2 border-b border-[rgba(255,255,255,.06)]">
-            <span class="text-[#7a8590]">${id} — ${desc}</span>
+          <div class="flex justify-between py-2 border-b border-[rgba(0,0,0,.06)]">
+            <span class="text-[#343a40]">${id} — ${desc}</span>
             <span class="font-bold ml-4 shrink-0" style="color:${col}">${st}</span>
           </div>`).join('')}
       </div>`,
@@ -1230,22 +1230,22 @@ function bindAll() {
     showModal({
       icon:'settings', title:'HMI Configuration',
       content:`<div class="tv text-sm space-y-4">
-        <div class="text-[#4a5260] text-[9px] uppercase tracking-wider border-b border-[rgba(255,255,255,.08)] pb-2">Display & Operations</div>
-        <label class="flex items-center justify-between cursor-pointer py-1 border-b border-[rgba(255,255,255,.06)]">
-          <span class="text-[#7a8590]">Safe-Mode Overrides</span>
-          <input type="checkbox" id="s-safe" class="w-4 h-4 accent-[#5a6573]" checked/>
+        <div class="text-[#6c757d] text-[9px] uppercase tracking-wider border-b border-[rgba(0,0,0,.08)] pb-2">Display & Operations</div>
+        <label class="flex items-center justify-between cursor-pointer py-1 border-b border-[rgba(0,0,0,.06)]">
+          <span class="text-[#343a40]">Safe-Mode Overrides</span>
+          <input type="checkbox" id="s-safe" class="w-4 h-4 accent-[#495057]" checked/>
         </label>
-        <label class="flex items-center justify-between cursor-pointer py-1 border-b border-[rgba(255,255,255,.06)]">
-          <span class="text-[#7a8590]">Verbose Telemetry Output</span>
-          <input type="checkbox" id="s-verb" class="w-4 h-4 accent-[#5a6573]"/>
+        <label class="flex items-center justify-between cursor-pointer py-1 border-b border-[rgba(0,0,0,.06)]">
+          <span class="text-[#343a40]">Verbose Telemetry Output</span>
+          <input type="checkbox" id="s-verb" class="w-4 h-4 accent-[#495057]"/>
         </label>
-        <label class="flex items-center justify-between cursor-pointer py-1 border-b border-[rgba(255,255,255,.06)]">
-          <span class="text-[#7a8590]">Mute Routine Notifications</span>
-          <input type="checkbox" id="s-mute" class="w-4 h-4 accent-[#5a6573]"/>
+        <label class="flex items-center justify-between cursor-pointer py-1 border-b border-[rgba(0,0,0,.06)]">
+          <span class="text-[#343a40]">Mute Routine Notifications</span>
+          <input type="checkbox" id="s-mute" class="w-4 h-4 accent-[#495057]"/>
         </label>
         <div class="pt-2">
-          <label class="text-[9px] text-[#4a5260] uppercase tracking-wider">DAO Source Mode</label>
-          <select id="s-dao" class="w-full mt-1 bg-[#0f1114] border border-[rgba(255,255,255,.1)] px-2 py-1.5 tv text-xs text-[#e0e4e8] focus:outline-none">
+          <label class="text-[9px] text-[#6c757d] uppercase tracking-wider">DAO Source Mode</label>
+          <select id="s-dao" class="w-full mt-1 bg-[#f4f6f8] border border-[rgba(0,0,0,.1)] px-2 py-1.5 tv text-xs text-[#212529] focus:outline-none">
             <option value="SIMULATED">SIMULATED (Politecnico Model)</option>
             <option value="PHYSICAL">PHYSICAL (Live Sensors)</option>
           </select>
@@ -1268,9 +1268,9 @@ function bindAll() {
     showModal({
       icon:'logout', title:'Terminate Session',
       content:`<div class="tv text-sm space-y-3">
-        <div class="p-3 border border-[#ff2020]/20 bg-[#ff2020]/5 text-[#ff2020] text-center font-bold uppercase text-xs">Warning: Active Shift In Progress</div>
-        <p class="text-[#7a8590]">Ending session transfers authority to standby console. SOP-02B procedural hand-off required.</p>
-        <div class="p-2 bg-[#0f1114] border border-[rgba(255,255,255,.08)] text-[10px] text-[#4a5260]">Role: ${S.role} · Session: ${S.sessionStart ? ts() : 'N/A'}</div>
+        <div class="p-3 border border-[#e31a1a]/20 bg-[#e31a1a]/5 text-[#e31a1a] text-center font-bold uppercase text-xs">Warning: Active Shift In Progress</div>
+        <p class="text-[#343a40]">Ending session transfers authority to standby console. SOP-02B procedural hand-off required.</p>
+        <div class="p-2 bg-[#f4f6f8] border border-[rgba(0,0,0,.08)] text-[10px] text-[#6c757d]">Role: ${S.role} · Session: ${S.sessionStart ? ts() : 'N/A'}</div>
       </div>`,
       primary:'TERMINATE', secondary:'ABORT',
       onConfirm: () => {
@@ -1293,15 +1293,15 @@ function bindAll() {
     dispatch('LOG',{msg:'SOP documentation accessed'});
     showModal({
       icon:'help', title:'Protocol Documentation',
-      content:`<div class="tv text-xs space-y-3 text-[#7a8590]">
-        <div class="font-bold text-[#e0e4e8] text-sm border-b border-[rgba(255,255,255,.08)] pb-2">SOP-74A: Primary Core Loop Operations</div>
-        <div><strong class="text-[#e0e4e8]">§4.2.1</strong> Monitor coolant inlet/outlet differential. Max ΔT = 280K.</div>
-        <div><strong class="text-[#e0e4e8]">§4.2.3</strong> If core temp &gt;1150°C, initiate advisory review per ESS-01.</div>
-        <div><strong class="text-[#e0e4e8]">§4.2.7</strong> Sub-valve 04-B: inspect every 30-min operational cycle.</div>
-        <div><strong class="text-[#e0e4e8]">§4.3.1</strong> SCRAM authority: OD and AS roles only. Double-click to confirm.</div>
-        <div class="font-bold text-[#e0e4e8] text-sm border-b border-[rgba(255,255,255,.08)] pb-2 pt-3">Appendix C: Emergency Depressurization</div>
+      content:`<div class="tv text-xs space-y-3 text-[#343a40]">
+        <div class="font-bold text-[#212529] text-sm border-b border-[rgba(0,0,0,.08)] pb-2">SOP-74A: Primary Core Loop Operations</div>
+        <div><strong class="text-[#212529]">§4.2.1</strong> Monitor coolant inlet/outlet differential. Max ΔT = 280K.</div>
+        <div><strong class="text-[#212529]">§4.2.3</strong> If core temp &gt;1150°C, initiate advisory review per ESS-01.</div>
+        <div><strong class="text-[#212529]">§4.2.7</strong> Sub-valve 04-B: inspect every 30-min operational cycle.</div>
+        <div><strong class="text-[#212529]">§4.3.1</strong> SCRAM authority: OD and AS roles only. Double-click to confirm.</div>
+        <div class="font-bold text-[#212529] text-sm border-b border-[rgba(0,0,0,.08)] pb-2 pt-3">Appendix C: Emergency Depressurization</div>
         <p>Confirm SCRAM engaged → open ERV-01 → notify shift supervisor → log audit trail.</p>
-        <div class="p-2 bg-[#0f1114] border border-[rgba(255,255,255,.08)] text-[9px] mt-2">IAEA-LFR-OPS-2026-04 | Rev: 4.2 | Class: RESTRICTED</div>
+        <div class="p-2 bg-[#f4f6f8] border border-[rgba(0,0,0,.08)] text-[9px] mt-2">IAEA-LFR-OPS-2026-04 | Rev: 4.2 | Class: RESTRICTED</div>
       </div>`,
     });
   });
@@ -1318,18 +1318,18 @@ function bindAll() {
       showModal({
         icon:'power_settings_new', title:'⚠ CONFIRM SCRAM',
         content:`<div class="tv space-y-3">
-          <div class="p-4 border-2 border-[#ff2020] bg-[#ff2020]/10 text-center">
-            <div class="text-[#ff2020] font-black text-lg uppercase tracking-wider blink">IRREVERSIBLE ACTION</div>
-            <div class="text-sm mt-1 text-[#7a8590]">All control rods will be fully inserted. Reactor shuts down immediately.</div>
+          <div class="p-4 border-2 border-[#e31a1a] bg-[#e31a1a]/10 text-center">
+            <div class="text-[#e31a1a] font-black text-lg uppercase tracking-wider blink">IRREVERSIBLE ACTION</div>
+            <div class="text-sm mt-1 text-[#343a40]">All control rods will be fully inserted. Reactor shuts down immediately.</div>
           </div>
-          <div class="tv text-[10px] text-[#4a5260] border border-[rgba(255,255,255,.08)] p-2">Unit: LFR-4G Unit 4 · User: ${S.role} · ${ts()}</div>
+          <div class="tv text-[10px] text-[#6c757d] border border-[rgba(0,0,0,.08)] p-2">Unit: LFR-4G Unit 4 · User: ${S.role} · ${ts()}</div>
         </div>`,
         primary:'EXECUTE SCRAM', secondary:'ABORT',
         onConfirm: () => {
           dispatch('SCRAM');
           dispatch('ADD_ALARM',{alarm:{id:'SCRAM-MAN',p:1,tag:'SCRAM',msg:'Manual SCRAM engaged — all rods inserting',acked:false,ts:ts()}});
           ScenarioEngine.stop();
-          showDemoBar('✅ MANUAL SCRAM EXECUTED — Reactor shutting down', '#20c060');
+          showDemoBar('✅ MANUAL SCRAM EXECUTED — Reactor shutting down', '#159647');
         }
       });
     }
@@ -1339,7 +1339,7 @@ function bindAll() {
   bindGuardedButton('btn-depressurize', 'CMP-12', 'U', () => {
     showModal({
       icon:'warning', title:'Emergency Depressurize',
-      content:'<p class="tv text-sm text-[#ffd020]">Opening Emergency Relief Valve ERV-01. This will depressurize the secondary circuit. Continue?</p>',
+      content:'<p class="tv text-sm text-[#d97d06]">Opening Emergency Relief Valve ERV-01. This will depressurize the secondary circuit. Continue?</p>',
       primary:'CONFIRM', secondary:'CANCEL',
       onConfirm: () => {
         dispatch('LOG',{msg:'Emergency depressurization — ERV-01 opened'});
@@ -1353,7 +1353,7 @@ function bindAll() {
   bindGuardedButton('btn-reset-locks', 'CMP-13', 'U', () => {
     showModal({
       icon:'settings', title:'Reset Protection Interlocks',
-      content:'<p class="tv text-sm text-[#7a8590]">Reset all non-SCRAM interlocks to ARMED. Perform only after root cause confirmed.</p>',
+      content:'<p class="tv text-sm text-[#343a40]">Reset all non-SCRAM interlocks to ARMED. Perform only after root cause confirmed.</p>',
       primary:'RESET INTERLOCKS', secondary:'CANCEL',
       onConfirm: ()=>dispatch('RESET_INTERLOCKS'),
     });
@@ -1370,12 +1370,12 @@ function bindAll() {
       showModal({
         icon:'check_circle', title:'Simulation Complete',
         content:`<div class="tv text-xs space-y-2">
-          <div class="text-[#4a5260] text-[9px]">Politecnico LFR-Physics Model v3.1 · DAO: ${DAO.mode}</div>
-          <div class="border border-[rgba(255,255,255,.08)] p-3 space-y-2">
-            <div class="flex justify-between"><span class="text-[#4a5260]">Core Temp T+30m</span><span class="font-bold">${(ct+3.4).toFixed(1)} °C</span></div>
-            <div class="flex justify-between"><span class="text-[#4a5260]">Pressure T+30m</span><span class="font-bold text-[#ffd020]">${(pp+13.5).toFixed(1)} PSI</span></div>
-            <div class="flex justify-between"><span class="text-[#4a5260]">Neutron Flux</span><span class="font-bold">Stable</span></div>
-            <div class="flex justify-between"><span class="text-[#4a5260]">Confidence</span><span class="font-bold text-[#20c060]">96.2%</span></div>
+          <div class="text-[#6c757d] text-[9px]">Politecnico LFR-Physics Model v3.1 · DAO: ${DAO.mode}</div>
+          <div class="border border-[rgba(0,0,0,.08)] p-3 space-y-2">
+            <div class="flex justify-between"><span class="text-[#6c757d]">Core Temp T+30m</span><span class="font-bold">${(ct+3.4).toFixed(1)} °C</span></div>
+            <div class="flex justify-between"><span class="text-[#6c757d]">Pressure T+30m</span><span class="font-bold text-[#d97d06]">${(pp+13.5).toFixed(1)} PSI</span></div>
+            <div class="flex justify-between"><span class="text-[#6c757d]">Neutron Flux</span><span class="font-bold">Stable</span></div>
+            <div class="flex justify-between"><span class="text-[#6c757d]">Confidence</span><span class="font-bold text-[#159647]">96.2%</span></div>
           </div>
         </div>`,
       });
@@ -1393,7 +1393,7 @@ function bindAll() {
   bindGuardedButton('btn-auto-pilot', 'CMP-17', 'U', () => {
     dispatch('TOGGLE_AUTOPILOT');
     const btn=document.getElementById('btn-auto-pilot');
-    if(S.autoPilot){ btn.textContent='⬛ Disable Auto-Pilot'; btn.style.color='#20c060'; btn.style.borderColor='#20c06033'; }
+    if(S.autoPilot){ btn.textContent='⬛ Disable Auto-Pilot'; btn.style.color='#159647'; btn.style.borderColor='#15964733'; }
     else           { btn.textContent='Enable Auto-Pilot Mode'; btn.style.color=''; btn.style.borderColor=''; }
   }, showModal);
 
@@ -1410,9 +1410,9 @@ function bindAll() {
   // ── Footer ───────────────────────────────────────────────────────
   document.getElementById('footer-protocol').addEventListener('click', ()=>{
     dispatch('LOG',{msg:'Protocol v4.2 accessed'});
-    showModal({icon:'article',title:'Protocol v4.2',content:`<div class="tv text-xs text-[#7a8590] space-y-2">
+    showModal({icon:'article',title:'Protocol v4.2',content:`<div class="tv text-xs text-[#343a40] space-y-2">
       <div>IAEA-LFR-PROT-2026 · Effective 2026-01-01</div>
-      <div class="border border-[rgba(255,255,255,.08)] p-3 space-y-2">
+      <div class="border border-[rgba(0,0,0,.08)] p-3 space-y-2">
         <div>§1 — HMI Authentication &amp; Role Separation</div>
         <div>§2 — Alarm Priority Classification (ISA-101)</div>
         <div>§3 — Digital Twin Synchronization</div>
@@ -1420,16 +1420,16 @@ function bindAll() {
         <div>§5 — Audit Trail &amp; Compliance</div>
         <div>§6 — Emergency Procedures</div>
       </div>
-      <div class="text-[10px] text-[#ff2020] mt-2">Classification: RESTRICTED</div>
+      <div class="text-[10px] text-[#e31a1a] mt-2">Classification: RESTRICTED</div>
     </div>`});
   });
   document.getElementById('footer-logs').addEventListener('click', ()=>dispatch('TOGGLE_AUDIT'));
   document.getElementById('footer-telemetry').addEventListener('click', ()=>{
     showModal({icon:'sensors',title:'Telemetry Node 08',content:`<div class="tv text-xs space-y-0">
-      ${[['Node ID','TELM-NODE-08',''],['Status','ONLINE','#20c060'],['Scan Rate','500ms',''],
-         ['Latency','8ms','#20c060'],['Sensors',String(Object.keys(S.sensors).length),''],
-         ['DAO Mode',DAO.mode,'#7a8590'],['Encryption','AES-512','']
-      ].map(([k,v,c])=>`<div class="flex justify-between py-2 border-b border-[rgba(255,255,255,.06)]"><span class="text-[#4a5260]">${k}</span><span class="font-bold" style="${c?`color:${c}`:'color:#e0e4e8'}">${v}</span></div>`).join('')}
+      ${[['Node ID','TELM-NODE-08',''],['Status','ONLINE','#159647'],['Scan Rate','500ms',''],
+         ['Latency','8ms','#159647'],['Sensors',String(Object.keys(S.sensors).length),''],
+         ['DAO Mode',DAO.mode,'#343a40'],['Encryption','AES-512','']
+      ].map(([k,v,c])=>`<div class="flex justify-between py-2 border-b border-[rgba(0,0,0,.06)]"><span class="text-[#6c757d]">${k}</span><span class="font-bold" style="${c?`color:${c}`:'color:#212529'}">${v}</span></div>`).join('')}
     </div>`});
   });
 }
@@ -1443,21 +1443,21 @@ function addAIMessage(text, isUser=false) {
   const div = document.createElement('div');
   div.className = 'flex gap-3 fade-in' + (isUser?' justify-end':'');
   if (isUser) {
-    div.innerHTML = `<div class="bg-[#22262b] p-3 border-r-2 border-[#5a6573] max-w-xs">
-      <div class="tv text-[9px] text-[#4a5260] mb-1">${S.role||'OL'} — ${ts()}</div>
-      <p class="tv text-xs font-medium text-[#e0e4e8]">${text}</p>
+    div.innerHTML = `<div class="bg-[#d1d6dc] p-3 border-r-2 border-[#495057] max-w-xs">
+      <div class="tv text-[9px] text-[#6c757d] mb-1">${S.role||'OL'} — ${ts()}</div>
+      <p class="tv text-xs font-medium text-[#212529]">${text}</p>
     </div>`;
   } else {
     // Colour-code based on severity keywords
     const isAlert = text.includes('🚨') || text.includes('CRITICAL') || text.includes('SCRAM');
     const isWarn  = text.includes('⚠') || text.includes('P2');
-    const bdrCol  = isAlert ? '#ff2020' : isWarn ? '#ffd020' : '#5a6573';
-    div.innerHTML = `<div class="w-7 h-7 bg-[#22262b] flex items-center justify-center flex-shrink-0">
-      <span class="ms material-symbols-outlined text-[#7a8590] text-[13px]" style="font-variation-settings:'FILL' 1">psychology</span>
+    const bdrCol  = isAlert ? '#e31a1a' : isWarn ? '#d97d06' : '#495057';
+    div.innerHTML = `<div class="w-7 h-7 bg-[#d1d6dc] flex items-center justify-center flex-shrink-0">
+      <span class="ms material-symbols-outlined text-[#343a40] text-[13px]" style="font-variation-settings:'FILL' 1">psychology</span>
     </div>
-    <div class="flex-1 bg-[#1a1d21] p-3 border-l-2" style="border-color:${bdrCol}">
-      <div class="tv text-[9px] text-[#4a5260] mb-1">AI COPILOT — ${ts()}</div>
-      <p class="tv text-xs text-[#e0e4e8]">${text}</p>
+    <div class="flex-1 bg-[#e2e6ea] p-3 border-l-2" style="border-color:${bdrCol}">
+      <div class="tv text-[9px] text-[#6c757d] mb-1">AI COPILOT — ${ts()}</div>
+      <p class="tv text-xs text-[#212529]">${text}</p>
     </div>`;
   }
   feed.appendChild(div);
