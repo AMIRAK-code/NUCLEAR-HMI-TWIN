@@ -1,15 +1,6 @@
 import { DAO } from './dao.js';
 import { ts } from '../utils.js';
 // ═══════════════════════════════════════════════════════════════════
-const INTENT_PERMISSIONS = {
-  // 'NAVIGATE', 'ACK_ALL', 'DISMISS_BANNER', 'TOGGLE_AUDIT', 'CLEAR_AUDIT', 'LOG', 'TOUCH_ACTIVITY', 'SET_DEMO_MODE', 'TOGGLE_HIGH_CONTRAST' are inherently safe for all logged-in roles
-  'SCRAM': ['OD', 'AS'],
-  'RESET_SCRAM': ['AS'],
-  'TOGGLE_AUTOPILOT': ['OD', 'AS'],
-  'RESET_INTERLOCKS': ['AS'],
-  'SHELF_ALARM': ['OD', 'AS'],
-  'UNSHELVE_ALARM': ['OD', 'AS']
-};
 
 // ── XSS escape utility (WCAG / security best practice) ──────────────
 function escHtml(str) {
@@ -62,4 +53,4 @@ export const mkModel = () => ({
 
 
 export let S = mkModel();
-export function setS(val) { S = val; }
+export function setS(val) { if(val) S = val; }

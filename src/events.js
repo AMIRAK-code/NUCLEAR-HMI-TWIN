@@ -1,7 +1,8 @@
+import { ACTION_TYPES as A } from '../constants/actionTypes.js';
 import { S, setS } from './model.js';
 import { DAO } from './dao.js';
 import { dispatch, scheduleRender } from './reducer.js';
-import { ts, p2, p3, escHtml, bindGuardedButton, dlFile, setText, setAttr } from '../utils.js';
+import { ts, p2, p3, escHtml, dlFile, setText, setAttr } from '../utils.js';
 import { ScenarioEngine } from './scenario-engine.js';
 import { renderDiagnostics } from './views/render.js';
 
@@ -59,7 +60,7 @@ export function bindAll() {
   document.querySelectorAll('.role-btn').forEach(b => {
     b.addEventListener('click', () => {
       const role = b.getAttribute('data-role');
-      dispatch('SET_ROLE', {role});
+      dispatch(A.SET_ROLE, {role});
       document.getElementById('role-overlay').style.display = 'none';
       const ts2 = document.getElementById('ai-init-ts');
       if (ts2) ts2.textContent = ts();
@@ -111,22 +112,22 @@ export function bindAll() {
   document.querySelectorAll('.nav-s, .nav-t').forEach(b => {
     b.addEventListener('click', () => {
       const panel = b.getAttribute('data-panel');
-      if (panel) dispatch('NAVIGATE', {panel});
+      if (panel) dispatch(A.NAVIGATE, {panel});
     });
   });
 
   // Alarm banner
-  document.getElementById('btn-ack-all').addEventListener('click', () => dispatch('ACK_ALL'));
-  document.getElementById('btn-dismiss-banner').addEventListener('click', () => dispatch('DISMISS_BANNER'));
+  document.getElementById('btn-ack-all').addEventListener('click', () => dispatch(A.ACK_ALL));
+  document.getElementById('btn-dismiss-banner').addEventListener('click', () => dispatch(A.DISMISS_BANNER));
 
   // Audit panel
-  ['btn-audit-hdr','btn-logs'].forEach(id => document.getElementById(id)?.addEventListener('click', () => dispatch('TOGGLE_AUDIT')));
-  document.getElementById('btn-close-audit').addEventListener('click', () => dispatch('TOGGLE_AUDIT'));
-  document.getElementById('btn-clear-audit').addEventListener('click', () => dispatch('CLEAR_AUDIT'));
+  ['btn-audit-hdr','btn-logs'].forEach(id => document.getElementById(id)?.addEventListener('click', () => dispatch(A.TOGGLE_AUDIT)));
+  document.getElementById('btn-close-audit').addEventListener('click', () => dispatch(A.TOGGLE_AUDIT));
+  document.getElementById('btn-clear-audit').addEventListener('click', () => dispatch(A.CLEAR_AUDIT));
   document.getElementById('btn-export-audit').addEventListener('click', () => {
     const csv = 'Timestamp,Role,Event\n' + S.auditLog.map(e=>`"${e.ts}","${e.role}","${e.msg}"`).join('\n');
     dlFile(csv, `audit-${Date.now()}.csv`, 'text/csv');
-    dispatch('LOG',{msg:'Audit log exported to CSV'});
+    dispatch(A.LOG,{msg:'Audit log exported to CSV'});
   });
 
   // ── DEMO BUTTON — CMP-22: OL=X, OD=R/U, AS=C/R/U/D ─────────────
@@ -150,7 +151,7 @@ export function bindAll() {
                       border:1px solid rgba(0,0,0,.08);padding:8px;">
             CMP-22 Access Matrix: OL=<span style="color:#adb5bd;">X</span> ·
             OD=<span style="color:#159647;">R/U</span> ·
-            AsetS();">C/R/U/D</span>
+            AS=<span style="color:#159647;">C/R/U/D</span>
           </div>
         </div>`,
       });
@@ -196,9 +197,9 @@ export function bindAll() {
 
     // Bind scenario buttons after modal renders
     setTimeout(() => {
-      document.getElementById('demo-btn-a')?.addEventListener('click', () => { hideModal(); ScenarioEngine.runRisingTemp(); dispatch('NAVIGATE',{panel:'panel-primary'}); });
-      document.getElementById('demo-btn-b')?.addEventListener('click', () => { hideModal(); ScenarioEngine.runLOCA();       dispatch('NAVIGATE',{panel:'panel-primary'}); });
-      document.getElementById('demo-btn-c')?.addEventListener('click', () => { hideModal(); ScenarioEngine.runBlackout();   dispatch('NAVIGATE',{panel:'panel-primary'}); });
+      document.getElementById('demo-btn-a')?.addEventListener('click', () => { hideModal(); ScenarioEngine.runRisingTemp(); dispatch(A.NAVIGATE,{panel:'panel-primary'}); });
+      document.getElementById('demo-btn-b')?.addEventListener('click', () => { hideModal(); ScenarioEngine.runLOCA();       dispatch(A.NAVIGATE,{panel:'panel-primary'}); });
+      document.getElementById('demo-btn-c')?.addEventListener('click', () => { hideModal(); ScenarioEngine.runBlackout();   dispatch(A.NAVIGATE,{panel:'panel-primary'}); });
     }, 50);
   });
 
@@ -207,7 +208,7 @@ export function bindAll() {
 
   // ── Header: System Topology ──────────────────────────────────────
   document.getElementById('btn-tree').addEventListener('click', () => {
-    dispatch('LOG',{msg:'System topology reviewed'});
+    dispatch(A.LOG,{msg:'System topology reviewed'});
     showModal({
       icon:'account_tree', title:'System Topology — RT-SIM-04',
       content:`<div class="tv text-xs space-y-0">
@@ -269,8 +270,8 @@ export function bindAll() {
         setText('diag-dao', dao);
         setText('ai-dao-mode', dao);
         const hcChecked = document.getElementById('s-hc')?.checked ?? false;
-        if (hcChecked !== S.highContrast) dispatch('TOGGLE_HIGH_CONTRAST');
-        dispatch('LOG',{msg:`Settings saved. DAO mode: ${dao}${hcChecked?' | High-contrast: ON':''}`});
+        if (hcChecked !== S.highContrast) dispatch(A.TOGGLE_HIGH_CONTRAST);
+        dispatch(A.LOG,{msg:`Settings saved. DAO mode: ${dao}${hcChecked?' | High-contrast: ON':''}`});
       }
     });
   });
@@ -287,7 +288,7 @@ export function bindAll() {
       primary:'TERMINATE', secondary:'ABORT',
       onConfirm: () => {
         ScenarioEngine.stop();
-        dispatch('LOG',{msg:`Session terminated. Role: ${S.role}`});
+        dispatch(A.LOG,{msg:`Session terminated. Role: ${S.role}`});
         setTimeout(()=>{
           document.getElementById('role-overlay').style.display='flex';
           // Clear RBAC context on logout
@@ -302,7 +303,7 @@ export function bindAll() {
 
   // ── Sidebar: Help ────────────────────────────────────────────────
   document.getElementById('btn-help').addEventListener('click', () => {
-    dispatch('LOG',{msg:'SOP documentation accessed'});
+    dispatch(A.LOG,{msg:'SOP documentation accessed'});
     showModal({
       icon:'help', title:'Protocol Documentation',
       content:`<div class="tv text-xs space-y-3 text-[#343a40]">
@@ -320,7 +321,7 @@ export function bindAll() {
 
   // ── Safety: SCRAM (double-click required, CMP-09) ────────────────────────
   let scramN=0, scramT=null;
-  bindGuardedButton('btn-scram', 'CMP-09', 'U', () => {
+  window.bindGuardedButton('btn-scram', 'CMP-09', 'U', () => {
     if (S.scramActive) return;
     scramN++;
     if (scramT) clearTimeout(scramT);
@@ -338,8 +339,8 @@ export function bindAll() {
         </div>`,
         primary:'EXECUTE SCRAM', secondary:'ABORT',
         onConfirm: () => {
-          dispatch('SCRAM');
-          dispatch('ADD_ALARM',{alarm:{id:'SCRAM-MAN',p:1,tag:'SCRAM',msg:'Manual SCRAM engaged — all rods inserting',acked:false,ts:ts()}});
+          dispatch(A.SCRAM);
+          dispatch(A.ADD_ALARM,{alarm:{id:'SCRAM-MAN',p:1,tag:'SCRAM',msg:'Manual SCRAM engaged — all rods inserting',acked:false,ts:ts()}});
           ScenarioEngine.stop();
           showDemoBar('✅ MANUAL SCRAM EXECUTED — Reactor shutting down', '#159647');
         }
@@ -348,32 +349,32 @@ export function bindAll() {
   }, showModal);
 
   // ── Safety: Emergency Depressurize (CMP-12) ──────────────────────────────
-  bindGuardedButton('btn-depressurize', 'CMP-12', 'U', () => {
+  window.bindGuardedButton('btn-depressurize', 'CMP-12', 'U', () => {
     showModal({
       icon:'warning', title:'Emergency Depressurize',
       content:'<p class="tv text-sm text-[#d97d06]">Opening Emergency Relief Valve ERV-01. This will depressurize the secondary circuit. Continue?</p>',
       primary:'CONFIRM', secondary:'CANCEL',
       onConfirm: () => {
-        dispatch('LOG',{msg:'Emergency depressurization — ERV-01 opened'});
-        dispatch('ADD_ALARM',{alarm:{id:'DEP-001',p:2,tag:'V-ERV-01',msg:'Emergency depressurization active',acked:false,ts:ts()}});
+        dispatch(A.LOG,{msg:'Emergency depressurization — ERV-01 opened'});
+        dispatch(A.ADD_ALARM,{alarm:{id:'DEP-001',p:2,tag:'V-ERV-01',msg:'Emergency depressurization active',acked:false,ts:ts()}});
         addAIMessage('Depressurization confirmed. ERV-01 open. Secondary pressure reducing. Monitor primary pressure ΔP.');
       }
     });
   }, showModal);
 
   // ── Safety: Reset Interlocks (CMP-13) ─────────────────────────────────────
-  bindGuardedButton('btn-reset-locks', 'CMP-13', 'U', () => {
+  window.bindGuardedButton('btn-reset-locks', 'CMP-13', 'U', () => {
     showModal({
       icon:'settings', title:'Reset Protection Interlocks',
       content:'<p class="tv text-sm text-[#343a40]">Reset all non-SCRAM interlocks to ARMED. Perform only after root cause confirmed.</p>',
       primary:'RESET INTERLOCKS', secondary:'CANCEL',
-      onConfirm: ()=>dispatch('RESET_INTERLOCKS'),
+      onConfirm: ()=>dispatch(A.RESET_INTERLOCKS),
     });
   }, showModal);
 
   // ── SIM RUN ──────────────────────────────────────────────────────
   document.getElementById('btn-run-sim')?.addEventListener('click', () => {
-    dispatch('LOG',{msg:'Simulation cycle started — Politecnico Model v3.1'});
+    dispatch(A.LOG,{msg:'Simulation cycle started — Politecnico Model v3.1'});
     const btn=document.getElementById('btn-run-sim');
     btn.textContent='RUNNING...'; btn.disabled=true;
     setTimeout(()=>{
@@ -396,14 +397,14 @@ export function bindAll() {
 
   // ── AI Copilot ───────────────────────────────────────────────────
   document.getElementById('btn-ai-analyze').addEventListener('click', () => {
-    dispatch('LOG',{msg:'AI analysis requested'});
+    dispatch(A.LOG,{msg:'AI analysis requested'});
     addAIMessage('Thermal analysis complete. Core temp within bounds. Recommend verifying Sub-Valve 04-B within T+5 min. No SCRAM action required at this time.');
-    dispatch('NAVIGATE',{panel:'panel-ai'});
+    dispatch(A.NAVIGATE,{panel:'panel-ai'});
   });
   document.getElementById('btn-ai-query').addEventListener('click', handleAIQuery);
   document.getElementById('ai-query-input').addEventListener('keydown', e=>{ if(e.key==='Enter') handleAIQuery(); });
-  bindGuardedButton('btn-auto-pilot', 'CMP-17', 'U', () => {
-    dispatch('TOGGLE_AUTOPILOT');
+  window.bindGuardedButton('btn-auto-pilot', 'CMP-17', 'U', () => {
+    dispatch(A.TOGGLE_AUTOPILOT);
     const btn=document.getElementById('btn-auto-pilot');
     if(S.autoPilot){ btn.textContent='⬛ Disable Auto-Pilot'; btn.style.color='#159647'; btn.style.borderColor='#15964733'; }
     else           { btn.textContent='Enable Auto-Pilot Mode'; btn.style.color=''; btn.style.borderColor=''; }
@@ -411,17 +412,17 @@ export function bindAll() {
 
   // ── Diagnostics ──────────────────────────────────────────────────
   document.getElementById('diag-search').addEventListener('input', ()=>renderDiagnostics(S));
-  document.getElementById('btn-diag-refresh').addEventListener('click', ()=>{ dispatch('LOG',{msg:'Diagnostics refreshed'}); renderDiagnostics(S); });
-  bindGuardedButton('btn-diag-export', 'CMP-19', 'R', () => {
+  document.getElementById('btn-diag-refresh').addEventListener('click', ()=>{ dispatch(A.LOG,{msg:'Diagnostics refreshed'}); renderDiagnostics(S); });
+  window.bindGuardedButton('btn-diag-export', 'CMP-19', 'R', () => {
     const rows=[['Tag','Description','System','Value','Unit','Trip','Status']];
     Object.values(S.sensors).forEach(s=>rows.push([s.tag,s.label,s.sys,DAO.fmt(s),s.u,s.trip,DAO.status(s).toUpperCase()]));
     dlFile(rows.map(r=>r.join(',')).join('\n'),`sensors-${Date.now()}.csv`,'text/csv');
-    dispatch('LOG',{msg:'Sensor data exported to CSV'});
+    dispatch(A.LOG,{msg:'Sensor data exported to CSV'});
   }, showModal);
 
   // ── Footer ───────────────────────────────────────────────────────
   document.getElementById('footer-protocol').addEventListener('click', ()=>{
-    dispatch('LOG',{msg:'Protocol v4.2 accessed'});
+    dispatch(A.LOG,{msg:'Protocol v4.2 accessed'});
     showModal({icon:'article',title:'Protocol v4.2',content:`<div class="tv text-xs text-[#343a40] space-y-2">
       <div>IAEA-LFR-PROT-2026 · Effective 2026-01-01</div>
       <div class="border border-[rgba(0,0,0,.08)] p-3 space-y-2">
@@ -435,7 +436,7 @@ export function bindAll() {
       <div class="text-[12px] text-[#e31a1a] mt-2">Classification: RESTRICTED</div>
     </div>`});
   });
-  document.getElementById('footer-logs').addEventListener('click', ()=>dispatch('TOGGLE_AUDIT'));
+  document.getElementById('footer-logs').addEventListener('click', ()=>dispatch(A.TOGGLE_AUDIT));
   document.getElementById('footer-telemetry').addEventListener('click', ()=>{
     showModal({icon:'sensors',title:'Telemetry Node 08',content:`<div class="tv text-xs space-y-0">
       ${[['Node ID','TELM-NODE-08',''],['Status','ONLINE','#159647'],['Scan Rate','500ms',''],
@@ -484,7 +485,7 @@ function handleAIQuery() {
   const inp = document.getElementById('ai-query-input');
   const q = inp.value.trim(); if (!q) return;
   addAIMessage(q, true); inp.value = '';
-  dispatch('LOG',{msg:`AI query: "${q}"`});
+  dispatch(A.LOG,{msg:`AI query: "${q}"`});
   setTimeout(()=>addAIMessage(AI_RESPONSES[Math.floor(Math.random()*AI_RESPONSES.length)](q)), 500+Math.random()*900);
 }
 // ═══════════════════════════════════════════════════════════════════
@@ -542,7 +543,7 @@ export function startDataLoop() {
           title: 'Session Timeout Warning',
           content: '<p class="tv text-sm text-[#d97d06]">Your session will automatically log out in 1 minute due to inactivity. Click STAY LOGGED IN to continue.</p>',
           primary: 'STAY LOGGED IN',
-          onConfirm: () => { dispatch('TOUCH_ACTIVITY'); resetSessionTimer(); }
+          onConfirm: () => { dispatch(A.TOUCH_ACTIVITY); resetSessionTimer(); }
         });
       }
     }
@@ -562,4 +563,4 @@ export function startDataLoop() {
 
     scheduleRender();
   }, 800);
-}
+}

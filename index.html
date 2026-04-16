@@ -717,14 +717,11 @@
 <script src="rbac-factory.js"></script>
 
 <!-- ══════════════════════════════════════════════════════════
-     ENTRY POINT
-     Production: `npm run build` → bundles src/main.js via Vite
-     Dev server: `npm run dev`   → hot-reload via Vite
-     Direct file access: falls back to monolithic script.js
+     ENTRY POINT (CORE-SENTINEL HMI)
+     Dev server:  npm run dev  → Vite HMR on http://localhost:3000
+     Production:  npm run build → dist/ bundle via Vite/esbuild
+     Direct HTML: open index.html → type="module" loads src/main.js
      ══════════════════════════════════════════════════════════ -->
 <script type="module" src="/src/main.js"></script>
-
-<!-- Legacy fallback for direct file:// access (no Vite server) -->
-<script nomodule src="script.js"></script>
 </body>
 </html>

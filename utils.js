@@ -65,16 +65,3 @@ export function dlFile(content, name, type) {
   URL.revokeObjectURL(a.href);
 }
 
-/**
- * Guarded button binding — requires double-click/double-tap for irreversible actions.
- * CMP-09 compliance (ISA-101 §5.5 — Confirmation required for safety-critical actions).
- * @param {string} id       DOM element id
- * @param {string} label    Control label for audit log
- * @param {string} role     Required role character (unused here, enforced by RBAC in reducer)
- * @param {Function} fn     Callback on guard success
- */
-export function bindGuardedButton(id, label, role, fn) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.addEventListener('click', fn);
-}

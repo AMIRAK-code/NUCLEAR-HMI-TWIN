@@ -24,4 +24,13 @@ export default defineConfig({
   preview: {
     port: 3001,
   },
+  // ── Vitest configuration ─────────────────────────────────────────────
+  // globals:true injects describe/test/expect/beforeEach into every test file
+  // so that tests without explicit vitest imports also work.
+  // The test file already has explicit imports, but this future-proofs the suite.
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['tests/**/*.test.js'],
+  },
 });

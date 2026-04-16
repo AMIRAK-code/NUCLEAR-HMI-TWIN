@@ -1,3 +1,4 @@
+import { ACTION_TYPES as A } from '../constants/actionTypes.js';
 import { S } from './model.js';
 import { dispatch } from './reducer.js';
 
@@ -74,7 +75,7 @@ export function initThreeJS() {
     const inact='tv text-[11px] px-2 py-1 border border-[rgba(0,0,0,.1)] font-bold bg-[#d1d6dc] text-[#343a40] hover:bg-[#ced4da]';
     if(pe) pe.className=mode==='persp'?act:inact;
     if(oe) oe.className=mode==='ortho'?act:inact;
-    dispatch('LOG',{msg:`Digital Twin camera: ${mode.toUpperCase()}`});
+    dispatch(A.LOG,{msg:`Digital Twin camera: ${mode.toUpperCase()}`});
   }
   document.getElementById('btn-persp')?.addEventListener('click', ()=>setCam('persp'));
   document.getElementById('btn-ortho')?.addEventListener('click', ()=>setCam('ortho'));
@@ -107,4 +108,4 @@ export function initThreeJS() {
     orthoCam.left=-d*a; orthoCam.right=d*a; orthoCam.updateProjectionMatrix();
     renderer.setSize(w,h);
   });
-}
+}

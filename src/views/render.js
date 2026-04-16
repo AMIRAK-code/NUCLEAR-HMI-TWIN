@@ -1,6 +1,7 @@
+import { ACTION_TYPES as A } from '../../constants/actionTypes.js';
 import { DAO } from '../dao.js';
 import { ts, pct, setText, setAttr, dlFile } from '../../utils.js';
-import { dispatch } from '../reducer.js';
+import { dispatch, scheduleRender } from '../reducer.js';
 
 // ═══════════════════════════════════════════════════════════════════
 export function render(s) {
@@ -86,13 +87,13 @@ export function renderHUD(s) {
   // Thermal margin to trip
   if (ss.CORE_TEMP) {
     const margin = 1 - (ss.CORE_TEMP.v - 900) / 300;
-    const pct = Math.max(0, Math.min(100, margin * 100)).toFixed(0);
+    const pctVal = Math.max(0, Math.min(100, margin * 100)).toFixed(0);
     const bar = document.getElementById('margin-bar');
     if (bar) {
-      bar.style.width = pct + '%';
+      bar.style.width = pctVal + '%';
       bar.style.background = margin < 0.2 ? '#e31a1a' : margin < 0.35 ? '#d97d06' : '#159647';
     }
-    setText('margin-pct', pct + '%');
+    setText('margin-pct', pctVal + '%');
   }
 
   // Power bar (% of rated from grid output)
@@ -130,13 +131,9 @@ export function renderSystemHealth(s) {
   }
 }
 
-// ─── CMP-23: CYBERSECURITY PANEL (AS only) ─────────────────────────
-// IEC 62443 / ISA-101 compliant — rendered only for System Admin role
 export function renderCyberPanel(s) {
-  // Panel is only visible to AS — skip render entirely for other roles
   if (s.role !== 'AS') return;
 
-  // ── Node Status ──────────────────────────────────────────────────
   const nodesEl = document.getElementById('cyber-nodes');
   if (nodesEl) {
     const nodes = [
@@ -149,7 +146,6 @@ export function renderCyberPanel(s) {
       { id:'NODE-ETA',     label:'Politecnico AI Physics Core',    status:'ONLINE',  latency:'12ms', load:41 },
       { id:'NODE-THETA',   label:'Audit & Compliance Logger',      status:'ONLINE',  latency:'2ms',  load:3  },
     ];
-    // Jitter load values slightly for live feel
     nodesEl.innerHTML = nodes.map(n => {
       const isOnline = n.status === 'ONLINE';
       const col      = isOnline ? '#159647' : '#e31a1a';
@@ -178,10 +174,8 @@ export function renderCyberPanel(s) {
     }).join('');
   }
 
-  // ── Intrusion Log ─────────────────────────────────────────────────
   const logEl = document.getElementById('cyber-log');
   if (logEl && !logEl.dataset.seeded) {
-    // Seed with static nominal log entries once
     logEl.dataset.seeded = '1';
     const entries = [
       { ts:'07:12:04', sev:'INFO',  msg:'TLS handshake verified — NODE-ETA ↔ HMI' },
@@ -204,7 +198,6 @@ export function renderCyberPanel(s) {
     }).join('');
   }
 
-  // ── Encryption Status ─────────────────────────────────────────────
   const encEl = document.getElementById('cyber-enc');
   if (encEl && !encEl.dataset.seeded) {
     encEl.dataset.seeded = '1';
@@ -280,7 +273,6 @@ export function renderSafetyPanel(s) {
   }
   if (lock) lock.style.display = (s.role==='OL') ? 'flex' : 'none';
 
-  // Control rods — position reflects live sensor
   const rt = document.getElementById('rod-table');
   if (rt && s.controlRods) {
     const avgPos = s.sensors.ROD_POS?.v ?? 72;
@@ -321,12 +313,12 @@ export function renderSecondaryStats(s) {
   el.innerHTML = '';
   const ss = s.sensors;
   [
-    { label:'SG Inlet Temperature', k:'SG_INLET',   pct:pct(ss.SG_INLET?.v,  420,550), col:'#cd5c08' },
-    { label:'Steam Pressure',       k:'STEAM_PRESS', pct:pct(ss.STEAM_PRESS?.v,130,180),col:'#343a40' },
-    { label:'Turbine Speed',        k:'TURBINE_RPM', pct:pct(ss.TURBINE_RPM?.v,2800,3200),col:'#159647'},
-    { label:'Grid Output',          k:'GRID_OUT',    pct:pct(ss.GRID_OUT?.v,  400,500), col:'#159647' },
-    { label:'Pump B Speed',         k:'PUMP_B',      pct:pct(ss.PUMP_B?.v,    2800,3600),col:'#159647'},
-    { label:'Secondary Flow',       k:'SEC_FLOW',    pct:pct(ss.SEC_FLOW?.v,  2400,3200),col:'#343a40'},
+    { label:'SG Inlet Temperature', k:'SG_INLET',   pctVal:pct(ss.SG_INLET?.v,  420,550), col:'#cd5c08' },
+    { label:'Steam Pressure',       k:'STEAM_PRESS', pctVal:pct(ss.STEAM_PRESS?.v,130,180),col:'#343a40' },
+    { label:'Turbine Speed',        k:'TURBINE_RPM', pctVal:pct(ss.TURBINE_RPM?.v,2800,3200),col:'#159647'},
+    { label:'Grid Output',          k:'GRID_OUT',    pctVal:pct(ss.GRID_OUT?.v,  400,500), col:'#159647' },
+    { label:'Pump B Speed',         k:'PUMP_B',      pctVal:pct(ss.PUMP_B?.v,    2800,3600),col:'#159647'},
+    { label:'Secondary Flow',       k:'SEC_FLOW',    pctVal:pct(ss.SEC_FLOW?.v,  2400,3200),col:'#343a40'},
   ].forEach(st => {
     const sr = ss[st.k];
     const val = sr ? DAO.fmt(sr) : '--';
@@ -336,13 +328,12 @@ export function renderSecondaryStats(s) {
       <div class="tv text-[11px] text-[#6c757d] uppercase tracking-wider font-bold">${st.label}</div>
       <div class="tv text-xl font-bold mt-0.5" style="color:${isAlarm?'#e31a1a':'#212529'}">${val} <span class="text-xs font-normal text-[#6c757d]">${unit}</span></div>
       <div class="w-full h-1 bg-[#d1d6dc] mt-2">
-        <div class="h-full transition-all duration-1000" style="width:${Math.min(100,Math.max(0,st.pct)).toFixed(0)}%;background:${isAlarm?'#e31a1a':st.col}"></div>
+        <div class="h-full transition-all duration-1000" style="width:${Math.min(100,Math.max(0,st.pctVal)).toFixed(0)}%;background:${isAlarm?'#e31a1a':st.col}"></div>
       </div>
       </div>
     </div>`;
   });
 
-  // Dynamically update Secondary loop status badge
   const secStatus = document.getElementById('sec-status');
   if (secStatus) {
     const isSecAlarm = ['SG_INLET','STEAM_PRESS','TURBINE_RPM','GRID_OUT','PUMP_B','SEC_FLOW']
@@ -360,7 +351,6 @@ export function renderSecondaryStats(s) {
     }
   }
 
-  // Update SVG P&ID text dynamically
   if (ss.SG_INLET) setText('svg-sec-hot', `${DAO.fmt(ss.SG_INLET)}°C →`);
   if (ss.SG_INLET) setText('svg-sec-cold', `← ${(ss.SG_INLET.v - 100).toFixed(1)}°C`);
   if (ss.STEAM_PRESS) setText('svg-sec-steam', `STEAM ${DAO.fmt(ss.STEAM_PRESS)} bar`);
@@ -428,15 +418,19 @@ export function renderAnomalyList(s) {
       </div>
       <div class="tv text-[12px] text-[#212529]" style="${a.shelved?'text-decoration:line-through':''}">${a.msg}</div>
       <div class="flex gap-2 pt-1">
-        ${!a.acked ? `<button class="tv text-[10px] uppercase font-bold text-[#212529] bg-[#d1d6dc] hover:bg-[#c2c7cd] px-2 py-0.5 border border-[#495057] transition-colors" onclick="S=reduce(S,'ACK_ALL');scheduleRender();">ACKNOWLEDGE</button>` : ''}
+        ${!a.acked ? `<button class="ack-btn tv text-[10px] uppercase font-bold text-[#212529] bg-[#d1d6dc] hover:bg-[#c2c7cd] px-2 py-0.5 border border-[#495057] transition-colors" data-id="${a.id}">ACKNOWLEDGE</button>` : ''}
         ${(s.role === 'OD' || s.role === 'AS') ? (
           a.shelved
-          ? `<button class="tv text-[10px] uppercase font-bold text-[#159647] border border-[#159647] px-2 py-0.5 hover:bg-[#159647] hover:text-white transition-colors" onclick="S=reduce(S,'UNSHELVE_ALARM',{id:'${a.id}'});scheduleRender();">UNSHELVE</button>`
-          : `<button class="tv text-[10px] uppercase font-bold text-[#6c757d] border border-[#6c757d] px-2 py-0.5 hover:bg-[#6c757d] hover:text-white transition-colors" onclick="S=reduce(S,'SHELF_ALARM',{id:'${a.id}'});scheduleRender();">SHELVE (SUPPRESS)</button>`
+          ? `<button class="unshelf-btn tv text-[10px] uppercase font-bold text-[#159647] border border-[#159647] px-2 py-0.5 hover:bg-[#159647] hover:text-white transition-colors" data-id="${a.id}">UNSHELVE</button>`
+          : `<button class="shelf-btn tv text-[10px] uppercase font-bold text-[#6c757d] border border-[#6c757d] px-2 py-0.5 hover:bg-[#6c757d] hover:text-white transition-colors" data-id="${a.id}">SHELVE (SUPPRESS)</button>`
         ) : ''}
       </div>
     </div>`;
   }).join('');
+
+  el.querySelectorAll('.ack-btn').forEach(b => b.addEventListener('click', () => dispatch(A.ACK_ALL)));
+  el.querySelectorAll('.shelf-btn').forEach(b => b.addEventListener('click', () => dispatch(A.SHELF_ALARM, {id:b.dataset.id})));
+  el.querySelectorAll('.unshelf-btn').forEach(b => b.addEventListener('click', () => dispatch(A.UNSHELVE_ALARM, {id:b.dataset.id})));
 }
 
 export function renderCopilotSteps(s) {
@@ -450,17 +444,17 @@ export function renderCopilotSteps(s) {
   ];
   el.innerHTML = `<div class="tv text-[11px] text-[#6c757d] uppercase tracking-widest mb-2">Protocol SCCP-74A</div>` +
     STEPS.map(st => {
-      const done=st.n<s.protocolStep, active=st.n===s.protocolStep, pending=st.n>s.protocolStep;
+      const done=st.n<s.protocolStep, active=st.n===s.protocolStep;
       const cls = done   ? 'flex gap-2 p-2.5 bg-[#159647]/5 border-l-2 border-[#159647] mb-2'
                 : active ? 'flex gap-2 p-2.5 bg-[#d1d6dc] border-l-4 border-[#495057] mb-2'
                 :          'flex gap-2 p-2.5 mb-2 opacity-40';
-      const num = done
+      const numHtml = done
         ? `<div class="w-5 h-5 rounded-full border border-[#159647] text-[#159647] flex items-center justify-center flex-shrink-0"><span class="ms material-symbols-outlined text-[11px]">check</span></div>`
         : `<div class="w-5 h-5 rounded-full border ${active?'border-[#495057] text-[#343a40]':'border-[#adb5bd] text-[#adb5bd]'} flex items-center justify-center flex-shrink-0 tv text-[12px] font-bold">${st.n}</div>`;
       const ackBtn = (active && st.btn)
         ? `<button class="copilot-ack mt-1.5 tv text-[11px] px-2 py-0.5 bg-[#d1d6dc] hover:bg-[#ced4da] border border-[rgba(0,0,0,.1)] font-bold uppercase tracking-wider transition-colors">ACKNOWLEDGE STEP</button>`
         : '';
-      return `<div class="${cls}">${num}
+      return `<div class="${cls}">${numHtml}
         <div class="flex-1">
           <div class="tv text-[12px] font-bold uppercase text-[#212529]">${st.title}</div>
           <div class="tv text-[11px] text-[#6c757d] italic mt-0.5">${st.desc}</div>
@@ -468,5 +462,5 @@ export function renderCopilotSteps(s) {
         </div>
       </div>`;
     }).join('');
-  el.querySelectorAll('.copilot-ack').forEach(b => b.addEventListener('click', () => dispatch('ADVANCE_PROTOCOL')));
-}
+  el.querySelectorAll('.copilot-ack').forEach(b => b.addEventListener('click', () => dispatch(A.ADVANCE_PROTOCOL)));
+}

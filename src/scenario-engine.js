@@ -1,3 +1,4 @@
+import { ACTION_TYPES as A } from '../constants/actionTypes.js';
 import { S } from './model.js';
 import { DAO } from './dao.js';
 import { dispatch, scheduleRender } from './reducer.js';
@@ -31,10 +32,10 @@ export const ScenarioEngine = {
   resetToNominal() {
     this.stop();
     DAO.reset();
-    dispatch('SET_DEMO_MODE', { active:false });
-    dispatch('RESET_SCRAM');
-    dispatch('CLEAR_ALARMS_BY_PREFIX', { prefix:'DEMO' });
-    dispatch('LOG', { msg:'System reset to nominal state by operator' });
+    dispatch(A.SET_DEMO_MODE, { active:false });
+    dispatch(A.RESET_SCRAM);
+    dispatch(A.CLEAR_ALARMS_BY_PREFIX, { prefix:'DEMO' });
+    dispatch(A.LOG, { msg:'System reset to nominal state by operator' });
 
     // Reset visual bars
     hideDemoBar();
@@ -66,13 +67,13 @@ export const ScenarioEngine = {
   runRisingTemp() {
     this.stop();
     this.active = true; this.name = 'RISING_TEMP';
-    dispatch('SET_DEMO_MODE', { active:true });
-    dispatch('LOG', { msg:'DEMO SCENARIO A: Rising Core Temperature initiated' });
+    dispatch(A.SET_DEMO_MODE, { active:true });
+    dispatch(A.LOG, { msg:'DEMO SCENARIO A: Rising Core Temperature initiated' });
 
     showDemoBar('SCENARIO A — Rising Core Temp: Coolant bypass valve restriction detected', '#d97d06');
     this.startCountdown(420); // ~7 min trip estimate
 
-    dispatch('ADD_ALARM', { alarm:{ id:'DEMO-A01', p:3, tag:'T-CORE-01', msg:'Core temp rising — bypass valve partial restriction', acked:false, ts:ts() }});
+    dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-A01', p:3, tag:'T-CORE-01', msg:'Core temp rising — bypass valve partial restriction', acked:false, ts:ts() }});
     addAIMessage('SCENARIO INITIATED: Coolant bypass valve partial closure detected. Core temperature drift: +1.2°C/min. Monitoring. Estimated time to P2 threshold: ~8 minutes.');
 
     let step = 0;
@@ -92,7 +93,7 @@ export const ScenarioEngine = {
 
       // P2 threshold ~1100°C
       if (DAO._s.CORE_TEMP.v > 1100 && !S.alarms.find(a=>a.id==='DEMO-A02')) {
-        dispatch('ADD_ALARM', { alarm:{ id:'DEMO-A02', p:2, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(1)}°C — approaching trip limit`, acked:false, ts:ts() }});
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-A02', p:2, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(1)}°C — approaching trip limit`, acked:false, ts:ts() }});
         addAIMessage('⚠ P2 ALARM: Core temperature exceeded 1100°C. Recommend initiating control rod insertion. Time to P1 trip limit: ~6 minutes at current rate.');
         showDemoBar('⚠ P2 ALARM — Core temp 1100°C — Control rod insertion recommended', '#d97d06');
         this.startCountdown(360);
@@ -100,7 +101,7 @@ export const ScenarioEngine = {
 
       // P1 threshold ~1160°C
       if (DAO._s.CORE_TEMP.v > 1160 && !S.alarms.find(a=>a.id==='DEMO-A03')) {
-        dispatch('ADD_ALARM', { alarm:{ id:'DEMO-A03', p:1, tag:'T-CORE-01', msg:`CRITICAL: Core temp ${DAO._s.CORE_TEMP.v.toFixed(1)}°C — SCRAM recommended`, acked:false, ts:ts() }});
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-A03', p:1, tag:'T-CORE-01', msg:`CRITICAL: Core temp ${DAO._s.CORE_TEMP.v.toFixed(1)}°C — SCRAM recommended`, acked:false, ts:ts() }});
         addAIMessage('🚨 P1 CRITICAL ALARM: Core temperature at ' + DAO._s.CORE_TEMP.v.toFixed(1) + '°C — 97% of trip limit. SCRAM RECOMMENDED IMMEDIATELY. Predicted trip in T+90s without action.');
         showDemoBar('🚨 P1 CRITICAL — Core temp ' + DAO._s.CORE_TEMP.v.toFixed(0) + '°C — SCRAM REQUIRED', '#e31a1a');
         this.startCountdown(90);
@@ -110,8 +111,8 @@ export const ScenarioEngine = {
 
       // Auto-SCRAM at trip limit
       if (DAO._s.CORE_TEMP.v > 1195 && !S.scramActive) {
-        dispatch('SCRAM');
-        dispatch('ADD_ALARM', { alarm:{ id:'DEMO-A-SCRAM', p:1, tag:'SCRAM', msg:'AUTO-SCRAM: Core temp exceeded trip limit 1195°C', acked:false, ts:ts() }});
+        dispatch(A.SCRAM);
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-A-SCRAM', p:1, tag:'SCRAM', msg:'AUTO-SCRAM: Core temp exceeded trip limit 1195°C', acked:false, ts:ts() }});
         addAIMessage('🚨 AUTOMATIC SCRAM EXECUTED by Reactor Protection System. Core temp: ' + DAO._s.CORE_TEMP.v.toFixed(1) + '°C exceeded 1195°C setpoint. All control rods inserting. Shutdown initiated.');
         showDemoBar('✅ AUTO-SCRAM EXECUTED — Reactor Protection System actuated', '#159647');
         this.stop();
@@ -129,8 +130,8 @@ export const ScenarioEngine = {
   runLOCA() {
     this.stop();
     this.active = true; this.name = 'LOCA';
-    dispatch('SET_DEMO_MODE', { active:true });
-    dispatch('LOG', { msg:'DEMO SCENARIO B: LOCA initiated' });
+    dispatch(A.SET_DEMO_MODE, { active:true });
+    dispatch(A.LOG, { msg:'DEMO SCENARIO B: LOCA initiated' });
 
     showDemoBar('SCENARIO B — LOCA: Pump-A bearing seizure detected', '#e31a1a');
     this.startCountdown(180);
@@ -139,8 +140,8 @@ export const ScenarioEngine = {
     DAO._s.PUMP_A.v = 0;
     DAO._s.SEC_FLOW.v = 1400;
 
-    dispatch('ADD_ALARM', { alarm:{ id:'DEMO-B01', p:1, tag:'N-PMP-A-01', msg:'PUMP-A BEARING SEIZURE — Loop-A primary flow lost', acked:false, ts:ts() }});
-    dispatch('ADD_ALARM', { alarm:{ id:'DEMO-B02', p:2, tag:'F-PRI-01',   msg:'Primary flow: 48% nominal — Lo-Low trip armed',    acked:false, ts:ts() }});
+    dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-B01', p:1, tag:'N-PMP-A-01', msg:'PUMP-A BEARING SEIZURE — Loop-A primary flow lost', acked:false, ts:ts() }});
+    dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-B02', p:2, tag:'F-PRI-01',   msg:'Primary flow: 48% nominal — Lo-Low trip armed',    acked:false, ts:ts() }});
     addAIMessage('🚨 LOCA DETECTED: Pump-A catastrophic bearing failure. Loop-A primary flow: 0%. Single-pump operation on Pump-B. Core thermal margins reducing rapidly — recommend SCRAM within 60 seconds.');
 
     const su = document.getElementById('sidebar-unit-state');
@@ -165,7 +166,7 @@ export const ScenarioEngine = {
       setEmergencyOverlay(Math.max(0, (margin - 0.4) * 2));
 
       if (step === 6) {
-        dispatch('ADD_ALARM', { alarm:{ id:'DEMO-B03', p:1, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(0)}°C rising rapidly`, acked:false, ts:ts() }});
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-B03', p:1, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(0)}°C rising rapidly`, acked:false, ts:ts() }});
         addAIMessage('🚨 CORE TEMP: ' + DAO._s.CORE_TEMP.v.toFixed(1) + '°C · Rate: +' + (7+step*.6).toFixed(0) + '°C/min. Pump-B overloaded at 118% rated. Risk of second pump failure. SCRAM AND DEPRESSURIZE NOW.');
         showDemoBar('🚨 P1 LOCA — Core temp ' + DAO._s.CORE_TEMP.v.toFixed(0) + '°C rising — SCRAM REQUIRED', '#e31a1a');
         this.startCountdown(120);
@@ -173,8 +174,8 @@ export const ScenarioEngine = {
 
       // Auto-SCRAM
       if (DAO._s.CORE_TEMP.v > 1180 && !S.scramActive) {
-        dispatch('SCRAM');
-        dispatch('ADD_ALARM', { alarm:{ id:'DEMO-B-SCRAM', p:1, tag:'SCRAM', msg:'AUTO-SCRAM: Core temp/flow trip actuated by RPS', acked:false, ts:ts() }});
+        dispatch(A.SCRAM);
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-B-SCRAM', p:1, tag:'SCRAM', msg:'AUTO-SCRAM: Core temp/flow trip actuated by RPS', acked:false, ts:ts() }});
         addAIMessage('🚨 REACTOR PROTECTION SYSTEM ACTUATED. Core temp ' + DAO._s.CORE_TEMP.v.toFixed(1) + '°C, primary flow < 40% nominal. All control rods inserting. Passive lead cooling: ACTIVATED.');
         showDemoBar('✅ RPS SCRAM EXECUTED — Passive lead cooling now active', '#159647');
         this.stop();
@@ -192,8 +193,8 @@ export const ScenarioEngine = {
   runBlackout() {
     this.stop();
     this.active = true; this.name = 'BLACKOUT';
-    dispatch('SET_DEMO_MODE', { active:true });
-    dispatch('LOG', { msg:'DEMO SCENARIO C: Station Blackout initiated' });
+    dispatch(A.SET_DEMO_MODE, { active:true });
+    dispatch(A.LOG, { msg:'DEMO SCENARIO C: Station Blackout initiated' });
 
     showDemoBar('SCENARIO C — STATION BLACKOUT: Total AC power loss · EDG starting', '#e31a1a');
     this.startCountdown(120);
@@ -207,7 +208,7 @@ export const ScenarioEngine = {
       { id:'DEMO-C02', p:1, tag:'N-PMP-A-01',  msg:'PUMP-A coast-down — AC power lost'},
       { id:'DEMO-C03', p:1, tag:'N-PMP-B-01',  msg:'PUMP-B coast-down — AC power lost'},
       { id:'DEMO-C04', p:2, tag:'V-SCR-01',    msg:'SCRAM bus degrading — battery backup active'},
-    ].forEach(a => dispatch('ADD_ALARM', { alarm:{ ...a, acked:false, ts:ts() }}));
+    ].forEach(alarm => dispatch(A.ADD_ALARM, { alarm:{ ...alarm, acked:false, ts:ts() }}));
 
     addAIMessage('🚨 STATION BLACKOUT CONDITION: All AC power buses de-energized. Emergency Diesel Generators starting (T+15s expected). Battery-backed SCRAM system ACTIVE. Lead-bismuth passive cooling: INITIATING.');
 
@@ -229,20 +230,20 @@ export const ScenarioEngine = {
 
       if (step === 3) {
         addAIMessage('⚠ EDG-1 START FAILURE. EDG-2 attempt in progress. Natural circulation in primary loop — passive lead flow rate: 12% nominal. Decay heat accumulation: CRITICAL CONCERN.');
-        dispatch('ADD_ALARM', { alarm:{ id:'DEMO-C05', p:1, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(0)}°C — decay heat accumulating`, acked:false, ts:ts() }});
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-C05', p:1, tag:'T-CORE-01', msg:`Core temp ${DAO._s.CORE_TEMP.v.toFixed(0)}°C — decay heat accumulating`, acked:false, ts:ts() }});
         showDemoBar('🚨 EDG FAILURE — Decay heat accumulating — SCRAM IMMINENT', '#e31a1a');
         this.startCountdown(60);
       }
 
       if (step === 6) {
-        dispatch('ADD_ALARM', { alarm:{ id:'DEMO-C06', p:1, tag:'V-SCR-01', msg:'SCRAM bus voltage: 37.8V — threshold approaching', acked:false, ts:ts() }});
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-C06', p:1, tag:'V-SCR-01', msg:'SCRAM bus voltage: 37.8V — threshold approaching', acked:false, ts:ts() }});
         addAIMessage('🚨 EDG-2 FAILED. SCRAM bus voltage: ' + DAO._s.SCRAM_V.v.toFixed(1) + 'V — approaching undervoltage trip. Battery reserve: ~4 minutes. PASSIVE SCRAM ACTUATING.');
       }
 
       // Auto-SCRAM at step 8+ or if SCRAM voltage trips
       if ((step >= 8 || DAO._s.SCRAM_V.v < 38.5) && !S.scramActive) {
-        dispatch('SCRAM');
-        dispatch('ADD_ALARM', { alarm:{ id:'DEMO-C-SCRAM', p:1, tag:'SCRAM', msg:'PASSIVE SCRAM: Gravity-drop rods by SCRAM bus undervoltage', acked:false, ts:ts() }});
+        dispatch(A.SCRAM);
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-C-SCRAM', p:1, tag:'SCRAM', msg:'PASSIVE SCRAM: Gravity-drop rods by SCRAM bus undervoltage', acked:false, ts:ts() }});
         addAIMessage('✅ PASSIVE SCRAM COMPLETE. Gravity-drop control rods fully inserted. Decay heat removal via passive lead-bismuth convection. Core temp trending toward stable. Plant in SAFE SHUTDOWN state.');
         showDemoBar('✅ PASSIVE SCRAM & SAFE SHUTDOWN — Passive LBE cooling active', '#159647');
         const su2 = document.getElementById('sidebar-unit-state');
@@ -257,4 +258,4 @@ export const ScenarioEngine = {
 
     this._t(degrade, 2000);
   },
-};
+};
