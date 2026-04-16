@@ -1,0 +1,86 @@
+{
+  "_comment": "CORE-SENTINEL HMI Configuration — ISA-101 §5.4 compliant. Edit trip setpoints here without code changes.",
+  "_standard": "ISA-101.01 / NUREG-0700 Rev. 3 / IEC 61511",
+  "_version": "4.2",
+
+  "session": {
+    "timeoutMinutes": 15,
+    "warnAtMinutesRemaining": 1,
+    "requireReauthOnSCRAM": false
+  },
+
+  "dataLoop": {
+    "scanRateMs": 800,
+    "clockUpdateMs": 1000
+  },
+
+  "roles": {
+    "OL": {
+      "label": "Local Operator",
+      "description": "Plant monitoring, alarm management, read-only telemetry",
+      "permissions": ["READ"]
+    },
+    "OD": {
+      "label": "Diagnostic Operator",
+      "description": "Digital Twin control, simulation management, AI Copilot, SCRAM authority",
+      "permissions": ["READ", "UPDATE", "SCRAM"]
+    },
+    "AS": {
+      "label": "System Admin",
+      "description": "Full configuration, interlock override, audit management, SCRAM authority",
+      "permissions": ["READ", "UPDATE", "CREATE", "DELETE", "SCRAM", "RESET_INTERLOCKS"]
+    }
+  },
+
+  "sensors": {
+    "CORE_TEMP":   { "tripHigh": 1200, "tripLow": 900,  "nominalHigh": 1100, "unit": "°C",    "priority": 1 },
+    "COOLANT_IN":  { "tripHigh": 620,  "tripLow": 480,  "nominalHigh": 580,  "unit": "K",     "priority": 2 },
+    "COOLANT_OUT": { "tripHigh": 900,  "tripLow": 750,  "nominalHigh": 870,  "unit": "K",     "priority": 2 },
+    "PRIM_PRESS":  { "tripHigh": 250,  "tripLow": 150,  "nominalHigh": 230,  "unit": "PSI",   "priority": 1 },
+    "PUMP_A":      { "tripHigh": 3600, "tripLow": 2800, "nominalHigh": 3400, "unit": "RPM",   "priority": 1 },
+    "PUMP_B":      { "tripHigh": 3600, "tripLow": 2800, "nominalHigh": 3400, "unit": "RPM",   "priority": 1 },
+    "NEUTRON_FLUX":{ "tripHigh": 4.0,  "tripLow": 2.5,  "nominalHigh": 3.8,  "unit": "e14 n/cm²·s", "priority": 1 },
+    "FUEL_BURNUP": { "tripHigh": 60,   "tripLow": 0,    "nominalHigh": 55,   "unit": "GWd/t", "priority": 3 },
+    "SG_INLET":    { "tripHigh": 550,  "tripLow": 420,  "nominalHigh": 510,  "unit": "°C",    "priority": 2 },
+    "STEAM_PRESS": { "tripHigh": 180,  "tripLow": 130,  "nominalHigh": 172,  "unit": "bar",   "priority": 2 },
+    "TURBINE_RPM": { "tripHigh": 3200, "tripLow": 2800, "nominalHigh": 3150, "unit": "RPM",   "priority": 2 },
+    "GRID_OUT":    { "tripHigh": 510,  "tripLow": 400,  "nominalHigh": 500,  "unit": "MWe",   "priority": 3 },
+    "ROD_POS":     { "tripHigh": 95,   "tripLow": 5,    "nominalHigh": 90,   "unit": "%",     "priority": 1 },
+    "SCRAM_V":     { "tripHigh": 0,    "tripLow": 40,   "nominalHigh": 0,    "unit": "V",     "priority": 1 },
+    "LEAD_LEVEL":  { "tripHigh": 0,    "tripLow": 90,   "nominalHigh": 0,    "unit": "%",     "priority": 2 },
+    "SEC_FLOW":    { "tripHigh": 3200, "tripLow": 2400, "nominalHigh": 3000, "unit": "kg/s",  "priority": 2 }
+  },
+
+  "alarmManagement": {
+    "enableFloodSuppression": true,
+    "maxActiveAlarms": 50,
+    "shelvingAllowedRoles": ["OD", "AS"],
+    "priorityColors": {
+      "P1": "#e31a1a",
+      "P2": "#d97d06",
+      "P3": "#cd5c08"
+    },
+    "priorityShapes": {
+      "P1": "■",
+      "P2": "▲",
+      "P3": "●"
+    }
+  },
+
+  "security": {
+    "encryptionSuite": "AES-256-GCM",
+    "keyExchange": "ECDH P-521",
+    "integrity": "SHA-3-512",
+    "authScheme": "JWT RS-4096",
+    "idsEngine": "Snort v3.1",
+    "protocol": "v4.2"
+  },
+
+  "standards": {
+    "hmi": "ISA-101.01",
+    "nuclear": "NUREG-0700 Rev. 3",
+    "functional_safety": "IEC 61511 SIL-2",
+    "cybersecurity": "IEC 62443",
+    "tag_format": "ISA-5.1"
+  }
+}

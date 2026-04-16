@@ -715,6 +715,16 @@
 
 <script src="component-registry.js"></script>
 <script src="rbac-factory.js"></script>
-<script src="script.js"></script>
+
+<!-- ══════════════════════════════════════════════════════════
+     ENTRY POINT
+     Production: `npm run build` → bundles src/main.js via Vite
+     Dev server: `npm run dev`   → hot-reload via Vite
+     Direct file access: falls back to monolithic script.js
+     ══════════════════════════════════════════════════════════ -->
+<script type="module" src="/src/main.js"></script>
+
+<!-- Legacy fallback for direct file:// access (no Vite server) -->
+<script nomodule src="script.js"></script>
 </body>
 </html>
