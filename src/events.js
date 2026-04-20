@@ -287,13 +287,20 @@ function handleAIQuery() {
 // ═══════════════════════════════════════════════════════════════════
 export function startClock() {
   const el = document.getElementById('utc-clock');
-  (function tick() {
+  const FMT = new Intl.DateTimeFormat('it-IT', {
+    timeZone: 'Europe/Rome',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+  function tick() {
     if (el) {
-      const n = new Date();
-      el.textContent = `${p2(n.getUTCHours())}:${p2(n.getUTCMinutes())}:${p2(n.getUTCSeconds())}:${p3(n.getUTCMilliseconds())} UTC`;
+      const parts = FMT.formatToParts(new Date());
+      const get = t => parts.find(p => p.type === t)?.value ?? '00';
+      el.textContent = `${get('hour')}:${get('minute')}:${get('second')} IT`;
     }
-    requestAnimationFrame(tick);
-  })();
+  }
+  tick(); // immediate first paint — no 1 s blank
+  setInterval(tick, 1000);
 }
 
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;

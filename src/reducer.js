@@ -80,7 +80,8 @@ export function reduce(s, intent, p = {}) {
     case A.ADD_ALARM: {
       // ISA-101 §5.3: First alarm in a quiet cascade is marked firstOut.
       const hasActive = s.alarms.some(a => !a.acked && !a.cleared && !a.shelved);
-      const newAlarm  = { cleared: false, shelved: false, firstOut: !hasActive, ...p.alarm };
+      // Enforced invariants come AFTER ...p.alarm so callers cannot pre-shelve or pre-clear an alarm.
+      const newAlarm  = { ...p.alarm, cleared: false, shelved: false, firstOut: !hasActive };
       return {
         ...s,
         alarms:   [...s.alarms, newAlarm],
