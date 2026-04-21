@@ -29,7 +29,7 @@
     "safety-critical"
   ],
   "license": "PROPRIETARY",
-  "main": "component-registry.js",
+  "main": "src/component-registry.js",
   "directories": {
     "test": "tests"
   },

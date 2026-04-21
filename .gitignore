@@ -12,8 +12,5 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Scratch/temp scripts (not project code)
-split.py
-split2.js
-convert_to_esm.js
-fix-imports.js
+# Migration tools
+tools/
