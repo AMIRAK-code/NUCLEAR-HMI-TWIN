@@ -14,6 +14,8 @@
 
 // ── Cloud configuration — replace with your relay endpoint ──────────────────
 const VR_CLOUD_ENDPOINT = 'wss://your-cloud-relay.example.com/vr-hmi';
+// Cloud relay connection timeout in milliseconds
+const VR_CONNECT_TIMEOUT_MS = 5000;
 // Optionally set a Meta Horizon Worlds App ID for direct deeplink launch
 const META_HORIZON_APP_ID = null;
 
@@ -79,11 +81,11 @@ export const VRService = {
         resolve(ok);
       };
 
-      // 5-second timeout
+      // VR_CONNECT_TIMEOUT_MS timeout
       const timer = setTimeout(() => {
         this._emit(VR_STATUS.ERROR);
         settle(false);
-      }, 5000);
+      }, VR_CONNECT_TIMEOUT_MS);
 
       try {
         this._ws = new WebSocket(VR_CLOUD_ENDPOINT);
@@ -150,17 +152,17 @@ export const VRService = {
 
   // ── Meta Horizon deeplink ───────────────────────────────────────────────────
   launchMetaHorizon() {
+    // Use only origin + pathname to avoid leaking query params or fragments
+    const safeUrl = encodeURIComponent(window.location.origin + window.location.pathname);
     if (META_HORIZON_APP_ID) {
       window.location.href = `horizonos://app/${META_HORIZON_APP_ID}`;
     } else {
-      const url = encodeURIComponent(window.location.href);
-      window.open(`https://oculus.com/open_url/?url=${url}`, '_blank', 'noopener,noreferrer');
+      window.open(`https://oculus.com/open_url/?url=${safeUrl}`, '_blank', 'noopener,noreferrer');
     }
   },
 
-  // ── QR code URL for scanning with a Quest headset ──────────────────────────
-  getQRCodeImgSrc() {
-    const data = encodeURIComponent(window.location.href);
-    return `https://api.qrserver.com/v1/create-qr-code/?data=${data}&size=160x160&margin=8&color=212529&bgcolor=f4f6f8`;
+  // ── URL for scanning with a Quest headset (origin + pathname only) ──────────
+  getPageURL() {
+    return window.location.origin + window.location.pathname;
   },
 };

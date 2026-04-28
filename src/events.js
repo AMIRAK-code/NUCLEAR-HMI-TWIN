@@ -316,13 +316,16 @@ function _updateVRButton(status) {
 }
 
 function _buildVRModalContent(isQuest, isWebXR) {
-  const qrSrc = VRService.getQRCodeImgSrc();
-  const qrBlock = isQuest ? '' : `
-    <div class="flex flex-col items-center gap-2 p-3 border border-[rgba(0,0,0,.08)] bg-[#f4f6f8]">
-      <div class="tv text-[11px] text-[#6c757d] uppercase tracking-wider">Scan with Meta Quest</div>
-      <img src="${escHtml(qrSrc)}" alt="QR code — scan with Quest" width="128" height="128"
-           style="image-rendering:pixelated"/>
-      <div class="tv text-[10px] text-[#adb5bd] text-center max-w-[180px] leading-tight">Point your Quest at this code to open in Meta Quest Browser</div>
+  const pageUrl = VRService.getPageURL();
+  const urlBlock = isQuest ? '' : `
+    <div class="flex flex-col gap-2 p-3 border border-[rgba(0,0,0,.08)] bg-[#f4f6f8]">
+      <div class="tv text-[11px] text-[#6c757d] uppercase tracking-wider">Open on Meta Quest Browser</div>
+      <div class="tv text-[10px] text-[#343a40] break-all select-all p-2 border border-[rgba(0,0,0,.06)] bg-white"
+           id="vr-url-display">${escHtml(pageUrl)}</div>
+      <button id="vr-btn-copy-url"
+        class="self-start tv text-[11px] px-2 py-1 border border-[rgba(0,0,0,.1)] hover:bg-[#d1d6dc] transition-colors">
+        COPY URL
+      </button>
     </div>`;
 
   const webxrBtn = isWebXR ? `
@@ -352,7 +355,7 @@ function _buildVRModalContent(isQuest, isWebXR) {
         <div class="tv text-[10px] text-[#6c757d] mt-0.5">Deeplink to Meta Horizon / Oculus Browser</div>
       </div>
     </button>
-    ${qrBlock}
+    ${urlBlock}
   </div>`;
 }
 
@@ -393,12 +396,22 @@ function _bindVRButton() {
     });
 
     // Start cloud relay connection in background
-    VRService.connectCloud().then(ok => {
-      dispatch(A.LOG, { msg: `VR cloud relay: ${ok ? 'connected' : 'unreachable — direct mode'}` });
-    });
+    VRService.connectCloud()
+      .then(ok => {
+        dispatch(A.LOG, { msg: `VR cloud relay: ${ok ? 'connected' : 'unreachable — direct mode'}` });
+      })
+      .catch(() => {
+        dispatch(A.LOG, { msg: 'VR cloud relay: connection failed' });
+      });
 
     // Wire modal buttons after DOM is ready
     setTimeout(() => {
+      document.getElementById('vr-btn-copy-url')?.addEventListener('click', () => {
+        const url = VRService.getPageURL();
+        navigator.clipboard?.writeText(url).catch(() => {});
+        const btn = document.getElementById('vr-btn-copy-url');
+        if (btn) { btn.textContent = 'COPIED ✓'; setTimeout(() => { btn.textContent = 'COPY URL'; }, 1500); }
+      });
       document.getElementById('vr-btn-webxr')?.addEventListener('click', async () => {
         const renderer = getRenderer();
         if (!renderer) return;
