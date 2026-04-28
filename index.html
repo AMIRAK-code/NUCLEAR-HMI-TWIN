@@ -248,6 +248,35 @@
       pointer-events: none;
       transition: opacity .5s ease
     }
+
+    /* VR button states */
+    #btn-vr-connect.vr-connecting {
+      animation: vr-pulse 1s infinite;
+      border-color: rgba(80,60,180,.6)
+    }
+
+    #btn-vr-connect.vr-connected {
+      border-color: rgba(21,150,71,.5);
+      background: rgba(21,150,71,.1);
+      color: #159647
+    }
+
+    #btn-vr-connect.vr-active {
+      border-color: rgba(80,60,180,.8);
+      background: rgba(80,60,180,.18);
+      color: #5e4dc8
+    }
+
+    #btn-vr-connect.vr-error {
+      border-color: rgba(227,26,26,.5);
+      background: rgba(227,26,26,.07);
+      color: #e31a1a
+    }
+
+    @keyframes vr-pulse {
+      0%, 100% { opacity: 1 }
+      50%       { opacity: .55 }
+    }
   </style>
 </head>
 
@@ -411,6 +440,13 @@
         class="flex items-center gap-1.5 px-3 py-1.5 border border-[#cd5c08]/50 bg-[#cd5c08]/10 hover:bg-[#cd5c08]/20 text-[#cd5c08] transition-colors">
         <span class="ms material-symbols-outlined text-[15px]">science</span>
         <span class="tv text-[12px] font-bold uppercase tracking-wider">DEMO</span>
+      </button>
+
+      <!-- VR CONNECT BUTTON -->
+      <button id="btn-vr-connect" title="Connect to VR / Meta Horizon"
+        class="flex items-center gap-1.5 px-3 py-1.5 border border-[rgba(80,60,180,.35)] bg-[rgba(80,60,180,.07)] hover:bg-[rgba(80,60,180,.15)] text-[#5e4dc8] transition-colors">
+        <span class="ms material-symbols-outlined text-[15px]">view_in_ar</span>
+        <span class="tv text-[12px] font-bold uppercase tracking-wider" id="btn-vr-label">CONNECT VR</span>
       </button>
 
       <button id="btn-logout" title="End Session"
