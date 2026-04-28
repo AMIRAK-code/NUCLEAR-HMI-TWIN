@@ -2,6 +2,12 @@ import { ACTION_TYPES as A } from '../constants/actionTypes.js';
 import { S } from './model.js';
 import { dispatch } from './reducer.js';
 
+// ── Module-level renderer reference so VR service can access it ──────────────
+let _renderer = null;
+
+/** Returns the Three.js WebGLRenderer instance (available after initThreeJS). */
+export function getRenderer() { return _renderer; }
+
 // ═══════════════════════════════════════════════════════════════════
 export function initThreeJS() {
   const container = document.getElementById('three-container');
@@ -20,7 +26,10 @@ export function initThreeJS() {
   renderer.setClearColor(0, 0);
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
+  // Enable WebXR so the renderer can host an immersive-vr session
+  renderer.xr.enabled = true;
   container.appendChild(renderer.domElement);
+  _renderer = renderer;
 
   const G = new THREE.Group();
   scene.add(G);
@@ -80,8 +89,8 @@ export function initThreeJS() {
   document.getElementById('btn-persp')?.addEventListener('click', ()=>setCam('persp'));
   document.getElementById('btn-ortho')?.addEventListener('click', ()=>setCam('ortho'));
 
-  (function animate() {
-    requestAnimationFrame(animate);
+  // Use setAnimationLoop — required for WebXR; works identically for non-XR rendering
+  renderer.setAnimationLoop(() => {
     const t = Date.now()*0.001;
     G.rotation.y = t*0.07;
 
@@ -98,7 +107,7 @@ export function initThreeJS() {
     outerMat.opacity = 0.5 + danger*0.3;
 
     renderer.render(scene, activeCam);
-  })();
+  });
 
   window.addEventListener('resize', ()=>{
     const w=container.clientWidth, h=container.clientHeight;
