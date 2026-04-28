@@ -232,6 +232,13 @@ export function reduce(s, intent, p = {}) {
     case A.CONFIG_TAB_CHANGE:
       return { ...s, configActiveTab: p.tab ?? 'overview' };
 
+    // ── VR Session ────────────────────────────────────────────────────────
+    case A.VR_CONNECT:
+      return { ...s, auditLog: log('VR session connected') };
+
+    case A.VR_DISCONNECT:
+      return { ...s, auditLog: log('VR session disconnected') };
+
     default:
       return s;
   }

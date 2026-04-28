@@ -45,6 +45,10 @@ export const ACTION_TYPES = Object.freeze({
   TOGGLE_HIGH_CONTRAST: 'TOGGLE_HIGH_CONTRAST',
   SET_DEMO_MODE:        'SET_DEMO_MODE',
 
+  // ── VR / Immersive Session ────────────────────────────────────────
+  VR_CONNECT:           'VR_CONNECT',
+  VR_DISCONNECT:        'VR_DISCONNECT',
+
   // ── Configuration Layer (WP 1.3 — AAS IEC 63278 / ISA-101 §5.4) ──────────
   CONFIG_UPDATE:        'CONFIG_UPDATE',
   CONFIG_ROLLBACK:      'CONFIG_ROLLBACK',
