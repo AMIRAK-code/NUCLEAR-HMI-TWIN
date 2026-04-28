@@ -7,6 +7,8 @@ import { ScenarioEngine } from './scenario-engine.js';
 import { renderDiagnostics } from './views/render.js';
 import { RBACContext, bindGuardedButton } from './rbac-factory.js';
 import { ConfigService } from './config-service.js';
+import { VRService, VR_STATUS } from './vr-service.js';
+import { getRenderer } from './three-twin.js';
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -279,6 +281,146 @@ export function bindAll() {
 
   // Diagnostics search
   document.getElementById('diag-search')?.addEventListener('input', () => renderDiagnostics(S));
+
+  // VR Connect button
+  _bindVRButton();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VR CONNECT — Meta Horizon deeplink / WebXR immersive session
+// ═══════════════════════════════════════════════════════════════════
+const VR_BTN_CLASSES = {
+  [VR_STATUS.DISCONNECTED]: '',
+  [VR_STATUS.CONNECTING]:   'vr-connecting',
+  [VR_STATUS.CONNECTED]:    'vr-connected',
+  [VR_STATUS.VR_ACTIVE]:    'vr-active',
+  [VR_STATUS.ERROR]:        'vr-error',
+};
+
+const VR_BTN_LABELS = {
+  [VR_STATUS.DISCONNECTED]: 'CONNECT VR',
+  [VR_STATUS.CONNECTING]:   'CONNECTING…',
+  [VR_STATUS.CONNECTED]:    'LAUNCH VR',
+  [VR_STATUS.VR_ACTIVE]:    'IN VR ✓',
+  [VR_STATUS.ERROR]:        'VR ERROR',
+};
+
+function _updateVRButton(status) {
+  const btn = document.getElementById('btn-vr-connect');
+  const lbl = document.getElementById('btn-vr-label');
+  if (!btn || !lbl) return;
+  btn.className = btn.className.replace(/\bvr-\S+/g, '').trim();
+  const cls = VR_BTN_CLASSES[status];
+  if (cls) btn.classList.add(cls);
+  lbl.textContent = VR_BTN_LABELS[status] ?? 'CONNECT VR';
+}
+
+function _buildVRModalContent(isQuest, isWebXR) {
+  const qrSrc = VRService.getQRCodeImgSrc();
+  const qrBlock = isQuest ? '' : `
+    <div class="flex flex-col items-center gap-2 p-3 border border-[rgba(0,0,0,.08)] bg-[#f4f6f8]">
+      <div class="tv text-[11px] text-[#6c757d] uppercase tracking-wider">Scan with Meta Quest</div>
+      <img src="${escHtml(qrSrc)}" alt="QR code — scan with Quest" width="128" height="128"
+           style="image-rendering:pixelated"/>
+      <div class="tv text-[10px] text-[#adb5bd] text-center max-w-[180px] leading-tight">Point your Quest at this code to open in Meta Quest Browser</div>
+    </div>`;
+
+  const webxrBtn = isWebXR ? `
+    <button id="vr-btn-webxr"
+      class="w-full flex items-center gap-2 p-3 border border-[rgba(80,60,180,.3)] bg-[rgba(80,60,180,.06)] hover:bg-[rgba(80,60,180,.14)] transition-colors">
+      <span class="ms material-symbols-outlined text-[#5e4dc8] text-[18px]">view_in_ar</span>
+      <div class="text-left">
+        <div class="tv font-bold text-[11px] uppercase tracking-wider text-[#5e4dc8]">Start WebXR Session</div>
+        <div class="tv text-[10px] text-[#6c757d] mt-0.5">Immersive VR — requires headset browser</div>
+      </div>
+    </button>` : `
+    <div class="p-3 border border-[rgba(0,0,0,.08)] bg-[#f4f6f8]">
+      <div class="tv text-[11px] text-[#adb5bd] uppercase tracking-wider">WebXR not available in this browser</div>
+    </div>`;
+
+  return `<div class="tv space-y-3 text-sm">
+    <div id="vr-modal-status" class="flex items-center gap-2 px-3 py-2 border border-[rgba(0,0,0,.08)] bg-[#f4f6f8]">
+      <div class="w-1.5 h-1.5 rounded-full bg-[#adb5bd]" id="vr-status-dot"></div>
+      <span class="tv text-[11px] text-[#6c757d]" id="vr-status-text">Checking cloud relay…</span>
+    </div>
+    ${webxrBtn}
+    <button id="vr-btn-horizon"
+      class="w-full flex items-center gap-2 p-3 border border-[rgba(0,0,0,.1)] hover:bg-[#d1d6dc] transition-colors">
+      <span class="ms material-symbols-outlined text-[#343a40] text-[18px]">open_in_new</span>
+      <div class="text-left">
+        <div class="tv font-bold text-[11px] uppercase tracking-wider text-[#212529]">Open in Meta Horizon</div>
+        <div class="tv text-[10px] text-[#6c757d] mt-0.5">Deeplink to Meta Horizon / Oculus Browser</div>
+      </div>
+    </button>
+    ${qrBlock}
+  </div>`;
+}
+
+function _bindVRButton() {
+  VRService.onStatusChange(status => {
+    _updateVRButton(status);
+    // Update modal status indicator if open
+    const dot  = document.getElementById('vr-status-dot');
+    const text = document.getElementById('vr-status-text');
+    if (!dot || !text) return;
+    const colors = {
+      [VR_STATUS.DISCONNECTED]: '#adb5bd',
+      [VR_STATUS.CONNECTING]:   '#d97d06',
+      [VR_STATUS.CONNECTED]:    '#159647',
+      [VR_STATUS.VR_ACTIVE]:    '#5e4dc8',
+      [VR_STATUS.ERROR]:        '#e31a1a',
+    };
+    const labels = {
+      [VR_STATUS.DISCONNECTED]: 'Cloud relay disconnected',
+      [VR_STATUS.CONNECTING]:   'Connecting to cloud relay…',
+      [VR_STATUS.CONNECTED]:    'Cloud relay connected',
+      [VR_STATUS.VR_ACTIVE]:    'VR session active',
+      [VR_STATUS.ERROR]:        'Cloud relay unreachable — using direct mode',
+    };
+    dot.style.background  = colors[status] ?? '#adb5bd';
+    text.textContent       = labels[status] ?? '';
+  });
+
+  document.getElementById('btn-vr-connect')?.addEventListener('click', async () => {
+    const isQuest  = VRService.isMetaQuest();
+    const isWebXR  = await VRService.isImmersiveVRSupported();
+
+    showModal({
+      icon: 'view_in_ar',
+      title: 'Connect to VR — Meta Horizon',
+      content: _buildVRModalContent(isQuest, isWebXR),
+      primary: 'CLOSE',
+    });
+
+    // Start cloud relay connection in background
+    VRService.connectCloud().then(ok => {
+      dispatch(A.LOG, { msg: `VR cloud relay: ${ok ? 'connected' : 'unreachable — direct mode'}` });
+    });
+
+    // Wire modal buttons after DOM is ready
+    setTimeout(() => {
+      document.getElementById('vr-btn-webxr')?.addEventListener('click', async () => {
+        const renderer = getRenderer();
+        if (!renderer) return;
+        const started = await VRService.startWebXRSession(renderer);
+        if (started) {
+          dispatch(A.VR_CONNECT);
+          dispatch(A.LOG, { msg: 'WebXR immersive-vr session started' });
+          hideModal();
+        } else {
+          const dot  = document.getElementById('vr-status-dot');
+          const text = document.getElementById('vr-status-text');
+          if (dot)  dot.style.background = '#e31a1a';
+          if (text) text.textContent = 'Failed to start WebXR session — headset required';
+        }
+      });
+
+      document.getElementById('vr-btn-horizon')?.addEventListener('click', () => {
+        dispatch(A.LOG, { msg: 'Meta Horizon deeplink launched' });
+        VRService.launchMetaHorizon();
+      });
+    }, 50);
+  });
 }
 
 function handleAIQuery() {
