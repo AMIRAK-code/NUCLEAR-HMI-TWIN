@@ -46,8 +46,8 @@
     "TURBINE_RPM": { "tripHigh": 3200, "tripLow": 2800, "nominalHigh": 3150, "unit": "RPM",   "priority": 2 },
     "GRID_OUT":    { "tripHigh": 510,  "tripLow": 400,  "nominalHigh": 500,  "unit": "MWe",   "priority": 3 },
     "ROD_POS":     { "tripHigh": 95,   "tripLow": 5,    "nominalHigh": 90,   "unit": "%",     "priority": 1 },
-    "SCRAM_V":     { "tripHigh": 0,    "tripLow": 40,   "nominalHigh": 0,    "unit": "V",     "priority": 1 },
-    "LEAD_LEVEL":  { "tripHigh": 0,    "tripLow": 90,   "nominalHigh": 0,    "unit": "%",     "priority": 2 },
+    "SCRAM_V":     { "tripHigh": 150,   "tripLow": 40,   "nominalHigh": 110,  "unit": "V",     "priority": 1 },
+    "LEAD_LEVEL":  { "tripHigh": 100,   "tripLow": 88,   "nominalHigh": 95,   "unit": "%",     "priority": 2 },
     "SEC_FLOW":    { "tripHigh": 3200, "tripLow": 2400, "nominalHigh": 3000, "unit": "kg/s",  "priority": 2 }
   },
 

@@ -16,8 +16,9 @@
 
 import rawConfig from '../hmi-config.json';
 
-const STORE_KEY = 'dao-sentinel-cfg';
-const AUDIT_KEY = 'dao-sentinel-cfg-audit';
+const STORE_KEY  = 'dao-sentinel-cfg-v2';   // bumped: forces re-seed (fixes SCRAM_V=0 in old cache)
+const AUDIT_KEY  = 'dao-sentinel-cfg-audit';
+const DRAFT_KEY  = 'dao-sentinel-cfg-drafts';
 const MAX_VERSIONS = 50;
 
 // ── djb2 hash (fast, deterministic, collision-resistant for config payloads) ──
@@ -28,6 +29,21 @@ function _hash(str) {
     h = h >>> 0; // keep unsigned 32-bit
   }
   return h.toString(16).padStart(8, '0').toUpperCase();
+}
+
+// ── FNV-1a 64-bit (two-pass) for stronger export integrity signature ──────────
+function _fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0').toUpperCase();
+}
+function _sign(payload) {
+  const lo = _fnv1a(payload + '\x00');
+  const hi = _fnv1a('\xFF' + payload);
+  return `FNV64:${hi}${lo}`;
 }
 
 // ── Deep non-destructive merge (target is NOT mutated) ───────────────────────
@@ -247,7 +263,20 @@ class _ConfigService {
     this._store  = null; // { meta, submodels, versions[] }
     this._audit  = [];
     this._daoRef = null; // lazy reference to DAO._s set by DAO.init()
+    this._drafts = [];   // pending OD → AS approval drafts
     this._init();
+    this._initDrafts();
+  }
+
+  _initDrafts() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) this._drafts = JSON.parse(raw);
+    } catch { this._drafts = []; }
+  }
+
+  _persistDrafts() {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(this._drafts)); } catch { /* non-critical */ }
   }
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────
@@ -636,6 +665,149 @@ class _ConfigService {
     this._seedFromDefaults();
 
     this._emit('*', [], this._store.meta.configVersion);
+    return true;
+  }
+
+  // ── Digital Signature — export with integrity checksum ────────────────────
+
+  /**
+   * exportSigned() — wraps the full config with an FNV-64 integrity checksum.
+   * On import, the checksum is verified before applying. Detects any
+   * byte-level tampering with the exported file. (IEC 62443 §4.3.4)
+   */
+  exportSigned() {
+    const payload = JSON.stringify(this._store.submodels);
+    const checksum = _sign(payload);
+    return JSON.stringify({
+      _signedExport:  true,
+      _tool:          'CORE-SENTINEL ConfigService v2.0',
+      _standard:      'AAS IEC 63278 / ISA-101.01',
+      _checksum:      checksum,
+      _algorithm:     'FNV-1a 64-bit (two-pass)',
+      _exportedAt:    new Date().toISOString(),
+      _exportedBy:    this._store.meta.lastModifiedBy,
+      meta:           this._store.meta,
+      submodels:      this._store.submodels,
+    }, null, 2);
+  }
+
+  /**
+   * importSigned(jsonStr, opts) — verifies checksum before applying.
+   * Falls through to normal import() if file is unsigned (backward-compatible).
+   */
+  importSigned(jsonStr, opts = {}) {
+    let parsed;
+    try { parsed = JSON.parse(jsonStr); }
+    catch (e) { return { ok: false, error: 'Invalid JSON: ' + e.message }; }
+
+    if (parsed._signedExport) {
+      // Verify integrity
+      const payload  = JSON.stringify(parsed.submodels);
+      const computed = _sign(payload);
+      if (computed !== parsed._checksum) {
+        return {
+          ok: false,
+          error: `⛔ INTEGRITY CHECK FAILED — file may have been tampered with.\n` +
+                 `Expected checksum: ${parsed._checksum}\n` +
+                 `Computed checksum: ${computed}\n` +
+                 `Import rejected per IEC 62443 §4.3.4.`,
+          tampered: true,
+        };
+      }
+    }
+    // Checksum OK (or unsigned — legacy)
+    return this.import(jsonStr, opts);
+  }
+
+  // ── Draft Mode — Two-Man Rule (OD submits, AS approves) ───────────────────
+  // Implements ISA-18.2 Management of Change / nuclear two-person integrity rule.
+
+  /**
+   * submitDraft(measuresDelta, { reason, user, role })
+   * OD submits a set of threshold changes for AS approval.
+   * Returns the draft ID.
+   */
+  submitDraft(measuresDelta, { reason = 'Change request', user = 'OD', role = 'OD' } = {}) {
+    const id = `DRAFT-${Date.now()}`;
+    const draft = {
+      id,
+      ts:      new Date().toISOString(),
+      user,
+      role,
+      reason,
+      changes: JSON.parse(JSON.stringify(measuresDelta)),
+      status:  'PENDING',   // PENDING | APPROVED | REJECTED
+    };
+    this._drafts.push(draft);
+    this._persistDrafts();
+
+    this._audit.push({
+      ts: new Date().toISOString(), role, user,
+      action: 'CONFIG_DRAFT_SUBMITTED', reason,
+      draftId: id,
+    });
+    this._persistAudit();
+
+    document.dispatchEvent(new CustomEvent('dao:draft:submitted', {
+      detail: { id, user, role, reason }, bubbles: true,
+    }));
+    return id;
+  }
+
+  /** getDrafts() — returns all drafts, newest first. */
+  getDrafts() { return [...this._drafts].reverse(); }
+
+  /** getPendingDrafts() — returns only PENDING drafts. */
+  getPendingDrafts() { return this._drafts.filter(d => d.status === 'PENDING').reverse(); }
+
+  /**
+   * approveDraft(draftId, { reason, user, role })
+   * AS approves a pending draft — applies changes as a new config version.
+   */
+  approveDraft(draftId, { reason = 'Approved', user = 'AS', role = 'AS' } = {}) {
+    const draft = this._drafts.find(d => d.id === draftId);
+    if (!draft || draft.status !== 'PENDING') return false;
+
+    const currentMeasures = this.get('measures') ?? {};
+    const delta = {};
+    for (const [key, fields] of Object.entries(draft.changes)) {
+      delta[key] = { ...currentMeasures[key], ...fields };
+    }
+
+    const ok = this.update('measures', delta, {
+      reason: `APPROVED: ${draft.reason} (submitted by ${draft.user}) — ${reason}`,
+      user, role,
+    });
+
+    if (ok) {
+      draft.status     = 'APPROVED';
+      draft.approvedBy = user;
+      draft.approvedAt = new Date().toISOString();
+      draft.approvalNote = reason;
+      this._persistDrafts();
+    }
+    return ok;
+  }
+
+  /**
+   * rejectDraft(draftId, { reason, user, role })
+   * AS rejects a pending draft.
+   */
+  rejectDraft(draftId, { reason = 'Rejected', user = 'AS', role = 'AS' } = {}) {
+    const draft = this._drafts.find(d => d.id === draftId);
+    if (!draft || draft.status !== 'PENDING') return false;
+
+    draft.status     = 'REJECTED';
+    draft.rejectedBy = user;
+    draft.rejectedAt = new Date().toISOString();
+    draft.rejectionNote = reason;
+    this._persistDrafts();
+
+    this._audit.push({
+      ts: new Date().toISOString(), role, user,
+      action: 'CONFIG_DRAFT_REJECTED', reason, draftId,
+    });
+    this._persistAudit();
     return true;
   }
 

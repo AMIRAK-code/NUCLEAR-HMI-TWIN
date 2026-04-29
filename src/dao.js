@@ -10,7 +10,7 @@ export const DAO = {
     CORE_TEMP:1100, COOLANT_IN:580, COOLANT_OUT:870, PRIM_PRESS:230,
     PUMP_A:3400, PUMP_B:3400, NEUTRON_FLUX:3.8, FUEL_BURNUP:55,
     SG_INLET:510, STEAM_PRESS:172, TURBINE_RPM:3150, GRID_OUT:500,
-    ROD_POS:90, SCRAM_V:0, LEAD_LEVEL:0, SEC_FLOW:3000,
+    ROD_POS:90, SCRAM_V:110, LEAD_LEVEL:95, SEC_FLOW:3000,
   },
 
   // Initial sensor map — v is seeded to nominal defaults so renderHUD
@@ -29,8 +29,8 @@ export const DAO = {
     TURBINE_RPM:  { tag:'N-TRB-01',    label:'Turbine Speed',          sys:'Secondary', u:'RPM',         vlt:3,    v:3150, trip:3200, low:2800 },
     GRID_OUT:     { tag:'P-GRID-01',   label:'Grid Electrical Output', sys:'Grid',      u:'MWe',         vlt:0.4,  v:500,  trip:510,  low:400  },
     ROD_POS:      { tag:'R-ROD-AVG',   label:'Control Rod Pos (avg)',  sys:'Safety',    u:'%',           vlt:0.08, v:90,   trip:95,   low:5    },
-    SCRAM_V:      { tag:'V-SCR-01',    label:'SCRAM Bus Voltage',      sys:'Safety',    u:'V',           vlt:0.04, v:0,    trip:0,    low:40   },
-    LEAD_LEVEL:   { tag:'L-PB-01',     label:'Lead Coolant Level',     sys:'Primary',   u:'%',           vlt:0.04, v:0,    trip:0,    low:90   },
+    SCRAM_V:      { tag:'V-SCR-01',    label:'SCRAM Bus Voltage',      sys:'Safety',    u:'V',           vlt:0.04, v:110,  trip:150,  low:40   },
+    LEAD_LEVEL:   { tag:'L-PB-01',     label:'Lead Coolant Level',     sys:'Primary',   u:'%',           vlt:0.04, v:95,   trip:100,  low:88   },
     SEC_FLOW:     { tag:'F-SEC-01',    label:'Secondary Flow Rate',    sys:'Secondary', u:'kg/s',        vlt:3.5,  v:3000, trip:3200, low:2400 },
   },
 

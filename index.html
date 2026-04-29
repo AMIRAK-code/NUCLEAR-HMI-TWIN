@@ -571,36 +571,36 @@
               <div id="three-emergency-overlay" class="absolute inset-0 pointer-events-none opacity-0"
                 style="background:radial-gradient(ellipse at center,rgba(227,26,26,.12) 0%,transparent 70%)"></div>
 
-              <!-- HUD Overlays -->
-              <div class="absolute top-3 left-3 p-2.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm">
+              <!-- HUD Overlays — IDs on wrappers for alarm-state color changes -->
+              <div id="hud-card-inlet" class="absolute top-3 left-3 p-2.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                 <div class="tv text-[11px] text-[#6c757d] uppercase mb-1">Coolant Inlet</div>
                 <div class="tv text-xl font-bold"><span id="hud-inlet">542.4</span><span
                     class="text-[11px] text-[#6c757d] ml-1">K</span></div>
               </div>
-              <div class="absolute top-3 right-3 p-2.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm">
+              <div id="hud-card-flux" class="absolute top-3 right-3 p-2.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                 <div class="tv text-[11px] text-[#6c757d] uppercase mb-1">Neutron Flux</div>
                 <div class="tv text-sm font-bold"><span id="hud-flux">3.42e14</span> n·cm⁻²·s⁻¹</div>
               </div>
               <div class="absolute bottom-3 right-3 flex flex-col gap-1.5">
-                <div
-                  class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm">
+                <div id="hud-card-pumpa"
+                  class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                   <span class="ms material-symbols-outlined text-[#343a40] text-[14px]">speed</span>
                   <div class="tv text-[11px]">PUMP-A: <span id="hud-pump-a">3,200</span> RPM</div>
                 </div>
-                <div
-                  class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm">
+                <div id="hud-card-core"
+                  class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                   <span class="ms material-symbols-outlined text-[#343a40] text-[14px]">thermostat</span>
                   <div class="tv text-[11px]">T-CORE: <span id="hud-core">1,045.2</span> °C</div>
                 </div>
-                <div
-                  class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm">
+                <div id="hud-card-press"
+                  class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                   <span class="ms material-symbols-outlined text-[#343a40] text-[14px]">compress</span>
                   <div class="tv text-[11px]">ΔP: <span id="hud-press">214.8</span> PSI</div>
                 </div>
               </div>
               <!-- Thermal margin bar -->
-              <div
-                class="absolute bottom-3 left-3 p-2.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm"
+              <div id="hud-card-margin"
+                class="absolute bottom-3 left-3 p-2.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500"
                 style="width:160px">
                 <div class="tv text-[11px] text-[#6c757d] uppercase mb-1.5">Core Margin to Trip</div>
                 <div class="w-full h-2 bg-[#f4f6f8]">
@@ -674,13 +674,13 @@
                 </div>
                 <div class="text-right">
                   <div class="tv text-[11px] text-[#e31a1a] uppercase">Trip Limit</div>
-                  <div class="tv text-xs text-[#e31a1a]">1,200.0 °C</div>
+                  <div id="chart1-trip-label" class="tv text-xs text-[#e31a1a]">1,200.0 °C</div>
                 </div>
               </div>
               <div class="flex-1 min-h-0 relative">
                 <svg id="svg-temp" viewBox="0 0 300 100" preserveAspectRatio="none"
                   class="absolute inset-0 w-full h-full">
-                  <line x1="0" y1="12" x2="300" y2="12" class="chart-trip" />
+                  <line id="ct-trip-line" x1="0" y1="12" x2="300" y2="12" class="chart-trip" />
                   <path id="ct-pred" d="" class="chart-pred" />
                   <path id="ct-rt" d="" class="chart-rt" />
                   <line x1="150" y1="0" x2="150" y2="100" stroke="#343a40" stroke-width=".4" stroke-dasharray="2,4"
@@ -701,13 +701,13 @@
                 </div>
                 <div class="text-right">
                   <div class="tv text-[11px] text-[#e31a1a] uppercase">Trip Limit</div>
-                  <div class="tv text-xs text-[#e31a1a]">250.0 PSI</div>
+                  <div id="chart2-trip-label" class="tv text-xs text-[#e31a1a]">250.0 PSI</div>
                 </div>
               </div>
               <div class="flex-1 min-h-0 relative">
                 <svg id="svg-press" viewBox="0 0 300 100" preserveAspectRatio="none"
                   class="absolute inset-0 w-full h-full">
-                  <line x1="0" y1="12" x2="300" y2="12" class="chart-trip" />
+                  <line id="cp-trip-line" x1="0" y1="12" x2="300" y2="12" class="chart-trip" />
                   <path id="cp-pred" d="" class="chart-pred" />
                   <path id="cp-rt" d="" class="chart-rt" />
                   <line x1="150" y1="0" x2="150" y2="100" stroke="#343a40" stroke-width=".4" stroke-dasharray="2,4"
@@ -760,13 +760,13 @@
                 <circle cx="185" cy="295" r="23" class="pid-box" />
                 <text x="185" y="299" text-anchor="middle" font-family="Courier New" font-size="11"
                   fill="#343a40">P-B</text>
-                <line x1="135" y1="145" x2="245" y2="145" class="pid-hot" />
+                <line id="pid-hot-pipe" x1="135" y1="145" x2="245" y2="145" class="pid-hot" />
                 <text x="190" y="136" text-anchor="middle" font-family="Courier New" font-size="11" fill="#cd5c08">HOT
                   →</text>
-                <line x1="135" y1="225" x2="245" y2="225" class="pid-pipe" />
+                <line id="pid-cold-pipe" x1="135" y1="225" x2="245" y2="225" class="pid-pipe" />
                 <text x="190" y="245" text-anchor="middle" font-family="Courier New" font-size="11" fill="#343a40">←
                   COLD</text>
-                <line x1="340" y1="155" x2="450" y2="168" stroke="#cd5c08" stroke-width="2.5" fill="none" opacity=".8"
+                <line id="pid-steam-pipe" x1="340" y1="155" x2="450" y2="168" stroke="#cd5c08" stroke-width="2.5" fill="none" opacity=".8"
                   stroke-dasharray="9,5" />
                 <text x="395" y="148" text-anchor="middle" font-family="Courier New" font-size="11" fill="#cd5c08">STEAM
                   →</text>

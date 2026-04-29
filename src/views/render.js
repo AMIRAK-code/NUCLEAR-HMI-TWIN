@@ -3,7 +3,21 @@ import { DAO } from '../dao.js';
 import { ts, pct, setText, setAttr, dlFile } from '../../utils.js';
 import { dispatch, scheduleRender } from '../reducer.js';
 import { renderConfigPanel } from './render-config.js';
-import { ConfigService } from '../config-service.js';
+import { ConfigService }  from '../config-service.js';
+import { UnitConverter }  from '../unit-converter.js';
+
+// ── Display helper: convert sensor value to current unit mode ─────────────────
+function _disp(v, u) {
+  if (v == null) return { val: '---', u: u ?? '' };
+  const c = UnitConverter.convert(v, u ?? '');
+  let str;
+  const av = Math.abs(c.v);
+  if      (av >= 10000) str = Math.round(c.v).toLocaleString();
+  else if (av >= 1000)  str = c.v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  else if (av >= 100)   str = c.v.toFixed(1);
+  else                  str = c.v.toFixed(2);
+  return { val: str, u: c.u };
+}
 
 // ═══════════════════════════════════════════════════════════════════
 export function render(s) {
@@ -82,13 +96,16 @@ export function renderHUD(s) {
   const ss = s.sensors;
   const m  = ConfigService.get('measures') ?? {};   // live setpoints from ConfigService
 
-  setText('hud-inlet',  ss.COOLANT_IN?.v?.toFixed(1)  ?? '---');
+  const _inletD  = _disp(ss.COOLANT_IN?.v,    ss.COOLANT_IN?.u  ?? 'K');
+  const _coreD   = _disp(ss.CORE_TEMP?.v,     ss.CORE_TEMP?.u   ?? '°C');
+  const _pressD  = _disp(ss.PRIM_PRESS?.v,    ss.PRIM_PRESS?.u  ?? 'PSI');
+  setText('hud-inlet',  _inletD.val);
   setText('hud-flux',   ss.NEUTRON_FLUX?.v != null ? `${ss.NEUTRON_FLUX.v.toFixed(2)}e14` : '---');
   setText('hud-pump-a', ss.PUMP_A?.v != null ? Math.round(ss.PUMP_A.v).toLocaleString() : '---');
-  setText('hud-core',   ss.CORE_TEMP?.v?.toFixed(1)   ?? '---');
-  setText('hud-press',  ss.PRIM_PRESS?.v?.toFixed(1)  ?? '---');
-  setText('chart1-val', ss.CORE_TEMP?.v?.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g,',') ?? '---');
-  setText('chart2-val', ss.PRIM_PRESS?.v?.toFixed(1)  ?? '---');
+  setText('hud-core',   _coreD.val);
+  setText('hud-press',  _pressD.val);
+  setText('chart1-val', _coreD.val);
+  setText('chart2-val', _pressD.val);
 
   // ── Thermal margin to trip — driven by ConfigService (live setpoints) ────────
   if (ss.CORE_TEMP?.v != null) {
@@ -115,6 +132,34 @@ export function renderHUD(s) {
     }
     setText('power-pct', pwr.toFixed(1) + '%');
   }
+
+  // ── HUD card alarm-state colors — ISA-101 visual urgency ─────────────────
+  // Maps each HUD card ID → the sensor key that drives its alarm state
+  const hudCards = [
+    { id: 'hud-card-inlet',  key: 'COOLANT_IN'   },
+    { id: 'hud-card-flux',   key: 'NEUTRON_FLUX'  },
+    { id: 'hud-card-pumpa',  key: 'PUMP_A'        },
+    { id: 'hud-card-core',   key: 'CORE_TEMP'     },
+    { id: 'hud-card-press',  key: 'PRIM_PRESS'    },
+    { id: 'hud-card-margin', key: 'CORE_TEMP'     },
+  ];
+  hudCards.forEach(({ id, key }) => {
+    const card   = document.getElementById(id);
+    if (!card) return;
+    const sensor = ss[key];
+    const st     = sensor ? DAO.status(sensor) : 'nominal';
+    // ISA-101: alarm = red border + tint, warning = amber, nominal = default
+    const borderCol = st === 'alarm'   ? '#e31a1a'
+                    : st === 'warning' ? '#d97d06'
+                    : st === 'low'     ? '#cd5c08'
+                    : 'rgba(0,0,0,.1)';
+    const bgCol     = st === 'alarm'   ? 'rgba(227,26,26,.08)'
+                    : st === 'warning' ? 'rgba(217,125,6,.08)'
+                    : st === 'low'     ? 'rgba(205,92,8,.06)'
+                    : 'rgba(226,230,234,.85)';
+    card.style.borderColor  = borderCol;
+    card.style.background   = bgCol;
+  });
 }
 
 export function renderSystemHealth(s) {
@@ -261,17 +306,18 @@ export function renderCharts(s) {
   setAttr('cp-rt',   'd', buildPath(s.histPress, ppLo, ppHi));
   setAttr('cp-pred', 'd', buildPred(s.histPress, ppLo, ppHi));
 
-  // Update trip-line Y positions on SVGs (the red dashed lines)
-  const ctTripY = toY(ctHi, ctLo, ctHi + 20).toFixed(1);
-  const ppTripY = toY(ppHi, ppLo, ppHi + 20).toFixed(1);
-  setAttr('ct-trip', 'd', `M 0,${ctTripY} L 300,${ctTripY}`);
-  setAttr('cp-trip', 'd', `M 0,${ppTripY} L 300,${ppTripY}`);
+  // Update trip-line Y positions on SVGs — toY maps tripHigh within [lo, hi] range
+  // Chart range is [ctLo, ctHi], so tripHigh is at ~y=16 (near top of 0-100 viewBox)
+  const ctTripY = toY(ctHi, ctLo, ctHi).toFixed(1);
+  const ppTripY = toY(ppHi, ppLo, ppHi).toFixed(1);
+  setAttr('ct-trip-line', 'y1', ctTripY); setAttr('ct-trip-line', 'y2', ctTripY);
+  setAttr('cp-trip-line', 'y1', ppTripY); setAttr('cp-trip-line', 'y2', ppTripY);
 
-  // Update chart labels with live setpoints
+  // Update chart labels with live setpoints (unit-converted)
   const ctLabel = document.getElementById('chart1-trip-label');
-  if (ctLabel) ctLabel.textContent = `TRIP ${ctHi}°C`;
+  if (ctLabel) { const d = _disp(ctHi, '°C'); ctLabel.textContent = `${d.val} ${d.u}`; }
   const ppLabel = document.getElementById('chart2-trip-label');
-  if (ppLabel) ppLabel.textContent = `TRIP ${ppHi} PSI`;
+  if (ppLabel) { const d = _disp(ppHi, 'PSI'); ppLabel.textContent = `${d.val} ${d.u}`; }
 }
 
 export function renderAuditPanel(s) {
@@ -369,8 +415,7 @@ export function renderSecondaryStats(s) {
       lo: m.SEC_FLOW?.tripLow ?? 2400, hi: m.SEC_FLOW?.tripHigh ?? 3200 },
   ].map(st => ({ ...st, pctVal: pct(ss[st.k]?.v, st.lo, st.hi) })).forEach(st => {
     const sr = ss[st.k];
-    const val = sr ? DAO.fmt(sr) : '--';
-    const unit = sr?.u ?? '';
+    const { val, u: unit } = sr ? _disp(sr.v, sr.u) : { val: '--', u: '' };
     const isAlarm = sr && DAO.status(sr) === 'alarm';
     el.innerHTML += `<div class="bg-[#f4f6f8] border ${isAlarm?'border-[#e31a1a]/30':'border-[rgba(0,0,0,.06)]'} p-3 mb-2">
       <div class="tv text-[11px] text-[#6c757d] uppercase tracking-wider font-bold">${st.label}</div>
@@ -402,6 +447,26 @@ export function renderSecondaryStats(s) {
   if (ss.SG_INLET) setText('svg-sec-hot', `${DAO.fmt(ss.SG_INLET)}°C →`);
   if (ss.SG_INLET) setText('svg-sec-cold', `← ${(ss.SG_INLET.v - 100).toFixed(1)}°C`);
   if (ss.STEAM_PRESS) setText('svg-sec-steam', `STEAM ${DAO.fmt(ss.STEAM_PRESS)} bar`);
+
+  // ── P&ID live pipe colors — ISA-101 alarm state visual feedback ──────────
+  // Hot lead pipe: color shifts from nominal orange → P2 amber → P1 red
+  const hotPipe = document.getElementById('pid-hot-pipe');
+  if (hotPipe && ss.SG_INLET) {
+    const hst = DAO.status(ss.SG_INLET);
+    hotPipe.style.stroke = hst === 'alarm' ? '#e31a1a' : hst === 'warning' ? '#d97d06' : '#cd5c08';
+  }
+  // Steam pipe: color shifts with steam pressure alarm state
+  const steamPipe = document.getElementById('pid-steam-pipe');
+  if (steamPipe && ss.STEAM_PRESS) {
+    const sst = DAO.status(ss.STEAM_PRESS);
+    steamPipe.style.stroke = sst === 'alarm' ? '#e31a1a' : sst === 'warning' ? '#d97d06' : '#cd5c08';
+  }
+  // Cold return pipe: tracks secondary flow — grey nominal, red on low-flow trip
+  const coldPipe = document.getElementById('pid-cold-pipe');
+  if (coldPipe && ss.SEC_FLOW) {
+    const cst = DAO.status(ss.SEC_FLOW);
+    coldPipe.style.stroke = cst === 'alarm' ? '#e31a1a' : cst === 'low' ? '#cd5c08' : '#495057';
+  }
 }
 
 export function renderDiagnostics(s) {
@@ -423,8 +488,8 @@ export function renderDiagnostics(s) {
       <td class="px-5 py-2 tv font-bold text-[#212529]">${sr.tag}</td>
       <td class="px-3 py-2 tv text-[#6c757d] text-[12px]">${sr.label}</td>
       <td class="px-3 py-2 tv text-[#6c757d] text-[12px] uppercase">${sr.sys}</td>
-      <td class="px-3 py-2 tv text-right font-bold" style="color:${c}">${DAO.fmt(sr)}</td>
-      <td class="px-3 py-2 tv text-right text-[#6c757d] text-[12px]">${sr.u}</td>
+      <td class="px-3 py-2 tv text-right font-bold" style="color:${c}">${_disp(sr.v, sr.u).val}</td>
+      <td class="px-3 py-2 tv text-right text-[#6c757d] text-[12px]">${_disp(sr.v, sr.u).u}</td>
       <td class="px-3 py-2 tv text-right text-[#6c757d] text-[12px]">${sr.trip}</td>
       <td class="px-3 py-2 tv text-center"><span class="text-[11px] font-bold px-1.5 py-0.5" style="color:${c};border:1px solid ${c}40">${slbl[st]}</span></td>
       <td class="px-5 py-2 tv text-right text-[#6c757d] text-[11px]">${now}</td>

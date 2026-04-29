@@ -6,7 +6,9 @@ import { ts, p2, p3, escHtml, dlFile, setText, setAttr } from '../utils.js';
 import { ScenarioEngine } from './scenario-engine.js';
 import { renderDiagnostics } from './views/render.js';
 import { RBACContext, bindGuardedButton } from './rbac-factory.js';
-import { ConfigService } from './config-service.js';
+import { ConfigService }  from './config-service.js';
+import { TelemetryBuffer } from './telemetry-buffer.js';
+import { UnitConverter }   from './unit-converter.js';
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -93,11 +95,11 @@ export function bindAll() {
       // Show Cybersecurity nav item only for AS
       const navCyber = document.getElementById('nav-cyber');
       if (navCyber) navCyber.style.display = role === 'AS' ? '' : 'none';
-      // Show Config Manager nav items only for AS (CMP-24 / SCR-14)
+      // Config Manager: AS = full edit; OD = read + draft submission
       const navConfig = document.getElementById('nav-config');
-      if (navConfig) navConfig.style.display = role === 'AS' ? '' : 'none';
+      if (navConfig) navConfig.style.display = (role === 'AS' || role === 'OD') ? '' : 'none';
       const navConfigTab = document.getElementById('nav-config-tab');
-      if (navConfigTab) navConfigTab.style.display = role === 'AS' ? '' : 'none';
+      if (navConfigTab) navConfigTab.style.display = (role === 'AS' || role === 'OD') ? '' : 'none';
     });
   });
 
@@ -178,6 +180,24 @@ export function bindAll() {
           <span class="text-[#343a40]">High-Contrast Mode</span>
           <input type="checkbox" id="s-hc" class="w-4 h-4 accent-[#495057]" ${S.highContrast ? 'checked' : ''}/>
         </label>
+        <label class="flex items-center justify-between cursor-pointer py-1 border-b border-[rgba(0,0,0,.06)]">
+          <div>
+            <span class="text-[#343a40]">Unit System</span>
+            <div class="text-[10px] text-[#6c757d] mt-0.5">Affects all sensor display values (°C↔°F, bar↔PSI, kg/s↔lb/s)</div>
+          </div>
+          <div class="flex gap-1">
+            <button id="s-unit-metric"
+              class="tv text-[10px] font-bold px-2.5 py-1 border transition-colors
+                ${UnitConverter.mode==='metric'?'bg-[#212529] text-white border-[#212529]':'border-[rgba(0,0,0,.15)] text-[#6c757d] hover:bg-[#e2e6ea]'}">
+              METRIC
+            </button>
+            <button id="s-unit-imperial"
+              class="tv text-[10px] font-bold px-2.5 py-1 border transition-colors
+                ${UnitConverter.mode==='imperial'?'bg-[#212529] text-white border-[#212529]':'border-[rgba(0,0,0,.15)] text-[#6c757d] hover:bg-[#e2e6ea]'}">
+              IMPERIAL
+            </button>
+          </div>
+        </label>
         <div class="pt-2">
           <label class="text-[11px] text-[#6c757d] uppercase tracking-wider">DAO Source Mode</label>
           <select id="s-dao" class="w-full mt-1 bg-[#f4f6f8] border border-[rgba(0,0,0,.1)] px-2 py-1.5 focus:outline-none">
@@ -190,12 +210,30 @@ export function bindAll() {
       onConfirm: () => {
         const dao = document.getElementById('s-dao')?.value || 'SIMULATED';
         DAO.mode = dao;
-        dispatch(A.LOG,{msg:`Settings saved. DAO mode: ${dao}`});
+        dispatch(A.LOG,{msg:`Settings saved. DAO mode: ${dao}, Units: ${UnitConverter.mode}`});
         const hcChecked = document.getElementById('s-hc')?.checked ?? false;
         if (hcChecked !== S.highContrast) dispatch(A.TOGGLE_HIGH_CONTRAST);
       }
     });
+    // Wire unit toggle buttons (inside modal, after DOM settles)
+    setTimeout(() => {
+      document.getElementById('s-unit-metric')?.addEventListener('click', () => {
+        UnitConverter.setMode('metric');
+        dispatch(A.LOG, { msg: 'Unit system set to METRIC' });
+        scheduleRender();
+        hideModal();
+      });
+      document.getElementById('s-unit-imperial')?.addEventListener('click', () => {
+        UnitConverter.setMode('imperial');
+        dispatch(A.LOG, { msg: 'Unit system set to IMPERIAL (°F, PSI, lb/s)' });
+        scheduleRender();
+        hideModal();
+      });
+    }, 50);
   });
+
+  // Re-render whenever unit mode changes (e.g. triggered from Config Manager)
+  document.addEventListener('dao:unit:changed', () => scheduleRender());
 
   // Logout
   document.getElementById('btn-logout')?.addEventListener('click', () => {
@@ -422,6 +460,9 @@ export function startDataLoop() {
         });
       }
     }
+
+    // ── Record to telemetry buffer (historical validation) ───────────────────
+    TelemetryBuffer.record(snapshot);
 
     // ── Full auto-alarm engine (all 16 sensors vs live ConfigService) ─────────
     _runAlarmEngine(snapshot);
