@@ -197,6 +197,9 @@ export function reduce(s, intent, p = {}) {
     case A.SET_DEMO_MODE:
       return { ...s, demoMode: p.active };
 
+    case A.TOGGLE_PREDICTION:
+      return { ...s, ui: { ...s.ui, predictionEnabled: !s.ui?.predictionEnabled } };
+
     // ── Configuration Layer (WP 1.3 — AAS IEC 63278 / ISA-101 §5.4) ─────────
     // ConfigService handles its own persistence; the reducer only manages
     // UI state (active tab) and the audit log.
