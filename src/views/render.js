@@ -1,6 +1,6 @@
 import { ACTION_TYPES as A } from '../../constants/actionTypes.js';
 import { DAO } from '../dao.js';
-import { ts, pct, setText, setAttr, dlFile } from '../../utils.js';
+import { ts, pct, setText, setAttr, dlFile, provenanceBadge } from '../../utils.js';
 import { dispatch, scheduleRender } from '../reducer.js';
 import { renderConfigPanel } from './render-config.js';
 import { ConfigService }  from '../config-service.js';
@@ -161,6 +161,10 @@ export function renderHUD(s) {
                     : 'rgba(226,230,234,.85)';
     card.style.borderColor  = borderCol;
     card.style.background   = bgCol;
+
+    // Provenance badge — update placeholder span if present
+    const badgeEl = card.querySelector('.hud-src-badge');
+    if (badgeEl) badgeEl.innerHTML = provenanceBadge(sensor?.source ?? 'SIM');
   });
 }
 
@@ -557,6 +561,7 @@ export function renderDiagnostics(s) {
       <td class="px-3 py-2 tv text-[#6c757d] text-[12px] uppercase">${sr.sys}</td>
       <td class="px-3 py-2 tv text-right font-bold" style="color:${c}">${_disp(sr.v, sr.u).val}</td>
       <td class="px-3 py-2 tv text-right text-[#6c757d] text-[12px]">${_disp(sr.v, sr.u).u}</td>
+      <td class="px-3 py-2 tv text-center">${provenanceBadge(sr.source ?? 'SIM')}</td>
       <td class="px-3 py-2 tv text-right text-[#6c757d] text-[12px]">${sr.trip}</td>
       <td class="px-3 py-2 tv text-center"><span class="text-[11px] font-bold px-1.5 py-0.5" style="color:${c};border:1px solid ${c}40">${slbl[st]}</span></td>
       <td class="px-5 py-2 tv text-right text-[#6c757d] text-[11px]">${now}</td>
