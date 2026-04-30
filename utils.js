@@ -52,6 +52,21 @@ export function escHtml(str) {
 }
 
 /**
+ * Returns an HTML badge string for a sensor data provenance source.
+ * @param {'LIVE'|'SIM'|'VIRTUAL'|'STALE'|string} source
+ * @returns {string} HTML span
+ */
+export function provenanceBadge(source) {
+  switch (source) {
+    case 'LIVE':    return '<span class="badge-live">● LIVE</span>';
+    case 'VIRTUAL': return '<span class="badge-virt">◇ VIRT</span>';
+    case 'STALE':   return '<span class="badge-stale">○ STALE</span>';
+    case 'SIM':     return '<span class="badge-sim">◈ SIM</span>';
+    default:        return '<span class="badge-sim">◈ UNK</span>';
+  }
+}
+
+/**
  * Trigger a file download in the browser.
  * @param {string} content  File body
  * @param {string} name     Suggested filename
