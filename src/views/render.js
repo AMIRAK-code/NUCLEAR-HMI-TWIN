@@ -5,6 +5,8 @@ import { dispatch, scheduleRender } from '../reducer.js';
 import { renderConfigPanel } from './render-config.js';
 import { ConfigService }  from '../config-service.js';
 import { UnitConverter }  from '../unit-converter.js';
+import { Predictor }      from '../predictor.js';
+import { TelemetryBuffer } from '../telemetry-buffer.js';
 
 // ── Display helper: convert sensor value to current unit mode ─────────────────
 function _disp(v, u) {
@@ -288,26 +290,20 @@ export function renderCharts(s) {
   const ppLo = m.PRIM_PRESS?.tripLow  ?? 150;
   const ppHi = m.PRIM_PRESS?.tripHigh ?? 250;
 
-  const toY = (v, lo, hi) => Math.max(4, Math.min(96, 100 - ((v-lo)/(hi-lo))*84));
+  const toY = (v, lo, hi) => Math.max(4, Math.min(96, 100 - ((v - lo) / (hi - lo)) * 84));
 
   function buildPath(data, lo, hi) {
-    return data.map((v,i) => `${i===0?'M':'L'} ${((i/(data.length-1))*150).toFixed(1)},${toY(v,lo,hi).toFixed(1)}`).join(' ');
-  }
-  function buildPred(data, lo, hi) {
-    const n = data.length, last = data[n-1];
-    const trend = (data[n-1] - data[Math.max(0,n-6)]) / Math.min(5,n-1);
-    let d = `M 150,${toY(last,lo,hi).toFixed(1)}`;
-    for (let i=1;i<=10;i++) d += ` L ${(150+(i/10)*150).toFixed(1)},${toY(last+trend*i*1.7,lo,hi).toFixed(1)}`;
-    return d;
+    return data.map((v, i) =>
+      `${i === 0 ? 'M' : 'L'} ${((i / (data.length - 1)) * 150).toFixed(1)},${toY(v, lo, hi).toFixed(1)}`
+    ).join(' ');
   }
 
   setAttr('ct-rt',   'd', buildPath(s.histTemp,  ctLo, ctHi));
-  setAttr('ct-pred', 'd', buildPred(s.histTemp,  ctLo, ctHi));
+  setAttr('ct-pred', 'd', '');
   setAttr('cp-rt',   'd', buildPath(s.histPress, ppLo, ppHi));
-  setAttr('cp-pred', 'd', buildPred(s.histPress, ppLo, ppHi));
+  setAttr('cp-pred', 'd', '');
 
-  // Update trip-line Y positions on SVGs — toY maps tripHigh within [lo, hi] range
-  // Chart range is [ctLo, ctHi], so tripHigh is at ~y=16 (near top of 0-100 viewBox)
+  // Update trip-line Y positions
   const ctTripY = toY(ctHi, ctLo, ctHi).toFixed(1);
   const ppTripY = toY(ppHi, ppLo, ppHi).toFixed(1);
   setAttr('ct-trip-line', 'y1', ctTripY); setAttr('ct-trip-line', 'y2', ctTripY);
@@ -318,6 +314,77 @@ export function renderCharts(s) {
   if (ctLabel) { const d = _disp(ctHi, '°C'); ctLabel.textContent = `${d.val} ${d.u}`; }
   const ppLabel = document.getElementById('chart2-trip-label');
   if (ppLabel) { const d = _disp(ppHi, 'PSI'); ppLabel.textContent = `${d.val} ${d.u}`; }
+
+  // ── Predictive trend overlay ──────────────────────────────────────────────
+  const predEnabled = s.ui?.predictionEnabled ?? true;
+  const bufLen      = TelemetryBuffer.get().length;
+
+  // Update PREDICT button visual state
+  const btnPred = document.getElementById('btn-toggle-prediction');
+  if (btnPred) {
+    if (predEnabled) {
+      btnPred.style.borderColor  = 'rgba(21,150,71,0.5)';
+      btnPred.style.background   = 'rgba(21,150,71,0.15)';
+      btnPred.style.color        = '#159647';
+    } else {
+      btnPred.style.borderColor  = 'rgba(0,0,0,0.08)';
+      btnPred.style.background   = '';
+      btnPred.style.color        = '#6c757d';
+    }
+  }
+
+  const ctG = document.getElementById('ct-prediction');
+  const cpG = document.getElementById('cp-prediction');
+
+  if (!predEnabled || bufLen < 10) {
+    if (ctG) ctG.innerHTML = '';
+    if (cpG) cpG.innerHTML = '';
+    _setTripIndicator('ct-time-to-trip', null, bufLen);
+    _setTripIndicator('cp-time-to-trip', null, bufLen);
+    return;
+  }
+
+  // Core Temperature prediction
+  const ctPred = Predictor.predict('CORE_TEMP', ctHi, ctLo);
+  if (ctG) ctG.innerHTML = _predPolyline(ctPred.projectedValues, ctLo, ctHi, toY);
+  _setTripIndicator('ct-time-to-trip', ctPred.timeToTrip, bufLen);
+
+  // Primary Pressure prediction
+  const ppPred = Predictor.predict('PRIM_PRESS', ppHi, ppLo);
+  if (cpG) cpG.innerHTML = _predPolyline(ppPred.projectedValues, ppLo, ppHi, toY);
+  _setTripIndicator('cp-time-to-trip', ppPred.timeToTrip, bufLen);
+}
+
+// Build SVG polyline points string for projection (x: 150→300, y: toY mapped)
+function _predPolyline(values, lo, hi, toY) {
+  if (values.length < 2) return '';
+  const n   = values.length;
+  const pts = values.map((v, i) => {
+    const x = (150 + (i / (n - 1)) * 150).toFixed(1);
+    const y = toY(v, lo, hi).toFixed(1);
+    return `${x},${y}`;
+  }).join(' ');
+  return `<polyline points="${pts}" fill="none" stroke="#212529" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.5"/>`;
+}
+
+// Update the time-to-trip indicator element
+function _setTripIndicator(id, timeToTrip, bufLen) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (bufLen < 10) {
+    el.textContent = '—';
+    el.style.color = '#6c757d';
+    return;
+  }
+  if (timeToTrip === null) {
+    el.textContent = '✓ SAFE';
+    el.style.color = '#159647';
+  } else {
+    const m = Math.floor(timeToTrip / 60);
+    const sec = String(Math.round(timeToTrip % 60)).padStart(2, '0');
+    el.textContent = `⚠ TRIP IN ${m}:${sec}`;
+    el.style.color = '#e31a1a';
+  }
 }
 
 export function renderAuditPanel(s) {

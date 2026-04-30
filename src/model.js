@@ -52,6 +52,8 @@ export const mkModel = () => ({
 
   // SCR-14 Platform Configuration Manager (CMP-24) — AS only
   configActiveTab: 'overview',
+
+  ui: { predictionEnabled: true },
 });
 
 

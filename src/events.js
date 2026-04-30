@@ -111,6 +111,9 @@ export function bindAll() {
     });
   });
 
+  // Predictive trend overlay toggle
+  document.getElementById('btn-toggle-prediction')?.addEventListener('click', () => dispatch(A.TOGGLE_PREDICTION));
+
   // Alarm banner
   document.getElementById('btn-ack-all')?.addEventListener('click', () => dispatch(A.ACK_ALL));
   document.getElementById('btn-dismiss-banner')?.addEventListener('click', () => dispatch(A.DISMISS_BANNER));
