@@ -248,6 +248,16 @@
       pointer-events: none;
       transition: opacity .5s ease
     }
+    .badge-live, .badge-sim, .badge-virt, .badge-stale {
+      display:inline-block; font-size:9px; font-family:'Courier New',monospace;
+      letter-spacing:.06em; text-transform:uppercase; font-weight:700;
+      padding:1px 4px; border-radius:2px; border-width:1px; border-style:solid;
+      line-height:1.4; white-space:nowrap;
+    }
+    .badge-live  { color:#159647; border-color:#15964755; background:rgba(21,150,71,.08);  }
+    .badge-sim   { color:#495057; border-color:#49505766; background:rgba(73,80,87,.07);   }
+    .badge-virt  { color:#0d6efd; border-color:#0d6efd55; background:rgba(13,110,253,.07); }
+    .badge-stale { color:#d97d06; border-color:#d97d0655; background:rgba(217,125,6,.08);  }
   </style>
 </head>
 
@@ -583,33 +593,41 @@
                 <div class="tv text-[11px] text-[#6c757d] uppercase mb-1">Coolant Inlet</div>
                 <div class="tv text-xl font-bold"><span id="hud-inlet">542.4</span><span
                     class="text-[11px] text-[#6c757d] ml-1">K</span></div>
+                <div class="text-right mt-0.5"><span class="hud-src-badge"></span></div>
               </div>
               <div id="hud-card-flux" class="absolute top-3 right-3 p-2.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                 <div class="tv text-[11px] text-[#6c757d] uppercase mb-1">Neutron Flux</div>
                 <div class="tv text-sm font-bold"><span id="hud-flux">3.42e14</span> n·cm⁻²·s⁻¹</div>
+                <div class="text-right mt-0.5"><span class="hud-src-badge"></span></div>
               </div>
               <div class="absolute bottom-3 right-3 flex flex-col gap-1.5">
                 <div id="hud-card-pumpa"
                   class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                   <span class="ms material-symbols-outlined text-[#343a40] text-[14px]">speed</span>
                   <div class="tv text-[11px]">PUMP-A: <span id="hud-pump-a">3,200</span> RPM</div>
+                  <span class="hud-src-badge ml-auto"></span>
                 </div>
                 <div id="hud-card-core"
                   class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                   <span class="ms material-symbols-outlined text-[#343a40] text-[14px]">thermostat</span>
                   <div class="tv text-[11px]">T-CORE: <span id="hud-core">1,045.2</span> °C</div>
+                  <span class="hud-src-badge ml-auto"></span>
                 </div>
                 <div id="hud-card-press"
                   class="flex items-center gap-2 px-2.5 py-1.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500">
                   <span class="ms material-symbols-outlined text-[#343a40] text-[14px]">compress</span>
                   <div class="tv text-[11px]">ΔP: <span id="hud-press">214.8</span> PSI</div>
+                  <span class="hud-src-badge ml-auto"></span>
                 </div>
               </div>
               <!-- Thermal margin bar -->
               <div id="hud-card-margin"
                 class="absolute bottom-3 left-3 p-2.5 bg-[#e2e6ea]/85 border border-[rgba(0,0,0,.1)] backdrop-blur-sm transition-colors duration-500"
                 style="width:160px">
-                <div class="tv text-[11px] text-[#6c757d] uppercase mb-1.5">Core Margin to Trip</div>
+                <div class="flex justify-between items-center mb-1.5">
+                  <div class="tv text-[11px] text-[#6c757d] uppercase">Core Margin to Trip</div>
+                  <span class="hud-src-badge"></span>
+                </div>
                 <div class="w-full h-2 bg-[#f4f6f8]">
                   <div id="margin-bar" class="h-full transition-all duration-700 bg-[#159647]" style="width:87%"></div>
                 </div>
@@ -947,6 +965,7 @@
                 <th class="text-left px-3 py-2">System</th>
                 <th class="text-right px-3 py-2">Value</th>
                 <th class="text-right px-3 py-2">Unit</th>
+                <th class="text-center px-3 py-2">Src</th>
                 <th class="text-right px-3 py-2">Trip</th>
                 <th class="text-center px-3 py-2">Status</th>
                 <th class="text-right px-5 py-2">Updated</th>
