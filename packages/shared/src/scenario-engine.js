@@ -1,0 +1,265 @@
+import { ACTION_TYPES as A } from '../constants/actionTypes.js';
+import { S } from './model.js';
+import { DAO } from './dao.js';
+import { dispatch, scheduleRender } from './reducer.js';
+import { ts } from '../utils.js';
+
+// ── UI callback registry ──────────────────────────────────────────────────
+// The shell calls registerScenarioCallbacks({ addAIMessage, showDemoBar,
+// setEmergencyOverlay, hideDemoBar }) so scenario-engine never imports
+// from the shell package directly (avoids cross-package circular dep).
+let _cbs = {
+  addAIMessage:       () => {},
+  showDemoBar:        () => {},
+  setEmergencyOverlay:() => {},
+  hideDemoBar:        () => {},
+};
+export function registerScenarioCallbacks(callbacks) {
+  _cbs = { ..._cbs, ...callbacks };
+}
+
+// Three emergency scenarios that play out over time
+// ═══════════════════════════════════════════════════════════════════
+export const ScenarioEngine = {
+  active: false,
+  name: null,
+  timers: [],
+  countdownInterval: null,
+  tripTimeSec: 0,
+  startedAt: 0,
+
+  _t(fn, delay) {
+    const id = setTimeout(fn, delay);
+    this.timers.push(id);
+    return id;
+  },
+
+  stop() {
+    this.timers.forEach(t => clearTimeout(t));
+    this.timers = [];
+    if (this.countdownInterval) clearInterval(this.countdownInterval);
+    this.active = false;
+    this.name = null;
+  },
+
+  resetToNominal() {
+    this.stop();
+    DAO.reset();
+    dispatch(A.SET_DEMO_MODE, { active:false });
+    dispatch(A.RESET_SCRAM);
+    dispatch(A.CLEAR_ALARMS_BY_PREFIX, { prefix:'DEMO' });
+    dispatch(A.LOG, { msg:'System reset to nominal state by operator' });
+
+    _cbs.hideDemoBar();
+    _cbs.setEmergencyOverlay(0);
+    const sEl = document.getElementById('sidebar-unit-state');
+    if (sEl) { sEl.textContent = 'Unit 4: Nominal'; sEl.style.color = '#159647'; }
+    scheduleRender();
+  },
+
+  startCountdown(tripSeconds) {
+    this.tripTimeSec = tripSeconds;
+    this.startedAt = Date.now();
+    if (this.countdownInterval) clearInterval(this.countdownInterval);
+    this.countdownInterval = setInterval(() => {
+      const elapsed = (Date.now() - this.startedAt) / 1000;
+      const remaining = Math.max(0, this.tripTimeSec - elapsed);
+      const el = document.getElementById('demo-countdown');
+      if (el) {
+        const m = Math.floor(remaining / 60);
+        const sc = Math.floor(remaining % 60);
+        el.textContent = `${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`;
+        el.className = remaining < 30 ? 'font-bold countdown-critical' : 'font-bold text-[#212529]';
+      }
+      if (remaining <= 0) clearInterval(this.countdownInterval);
+    }, 500);
+  },
+
+  // ─── SCENARIO A: Rising Core Temperature ───────────────────────
+  runRisingTemp() {
+    this.stop();
+    this.active = true; this.name = 'RISING_TEMP';
+    dispatch(A.SET_DEMO_MODE, { active:true });
+    dispatch(A.LOG, { msg:'DEMO SCENARIO A: Rising Core Temperature initiated' });
+
+    _cbs.showDemoBar('SCENARIO A — Rising Core Temp: Coolant bypass valve restriction detected', '#d97d06');
+    this.startCountdown(420);
+
+    dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-A01', p:3, tag:'T-CORE-01', msg:'Core temp rising — bypass valve partial restriction', acked:false, ts:ts() }});
+    _cbs.addAIMessage('SCENARIO INITIATED: Coolant bypass valve partial closure detected. Core temperature drift: +1.2°C/min. Monitoring. Estimated time to P2 threshold: ~8 minutes.');
+
+    let step = 0;
+    const escalate = () => {
+      if (!this.active || S.scramActive) return;
+      step++;
+
+      DAO.inject('CORE_TEMP', 4.5 + step * 0.25);
+      DAO.inject('COOLANT_IN', 0.7);
+      DAO.inject('COOLANT_OUT', 1.2);
+      DAO.inject('PRIM_PRESS', 0.35);
+      DAO.inject('SG_INLET', 1.0);
+
+      const margin = (DAO.snapshot().CORE_TEMP.v - 900) / 300;
+      _cbs.setEmergencyOverlay(Math.max(0, (margin - 0.6) * 2.5));
+
+      if (DAO.snapshot().CORE_TEMP.v > 1100 && !S.alarms.find(a=>a.id==='DEMO-A02')) {
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-A02', p:2, tag:'T-CORE-01', msg:`Core temp ${DAO.snapshot().CORE_TEMP.v.toFixed(1)}°C — approaching trip limit`, acked:false, ts:ts() }});
+        _cbs.addAIMessage('⚠ P2 ALARM: Core temperature exceeded 1100°C. Recommend initiating control rod insertion. Time to P1 trip limit: ~6 minutes at current rate.');
+        _cbs.showDemoBar('⚠ P2 ALARM — Core temp 1100°C — Control rod insertion recommended', '#d97d06');
+        this.startCountdown(360);
+      }
+
+      if (DAO.snapshot().CORE_TEMP.v > 1160 && !S.alarms.find(a=>a.id==='DEMO-A03')) {
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-A03', p:1, tag:'T-CORE-01', msg:`CRITICAL: Core temp ${DAO.snapshot().CORE_TEMP.v.toFixed(1)}°C — SCRAM recommended`, acked:false, ts:ts() }});
+        _cbs.addAIMessage('🚨 P1 CRITICAL ALARM: Core temperature at ' + DAO.snapshot().CORE_TEMP.v.toFixed(1) + '°C — 97% of trip limit. SCRAM RECOMMENDED IMMEDIATELY. Predicted trip in T+90s without action.');
+        _cbs.showDemoBar('🚨 P1 CRITICAL — Core temp ' + DAO.snapshot().CORE_TEMP.v.toFixed(0) + '°C — SCRAM REQUIRED', '#e31a1a');
+        this.startCountdown(90);
+        const su = document.getElementById('sidebar-unit-state');
+        if (su) { su.textContent = 'Unit 4: CRITICAL'; su.style.color = '#e31a1a'; }
+      }
+
+      if (DAO.snapshot().CORE_TEMP.v > 1195 && !S.scramActive) {
+        dispatch(A.AUTO_SCRAM);
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-A-SCRAM', p:1, tag:'SCRAM', msg:'AUTO-SCRAM: Core temp exceeded trip limit 1195°C', acked:false, ts:ts() }});
+        _cbs.addAIMessage('🚨 AUTOMATIC SCRAM EXECUTED by Reactor Protection System. Core temp: ' + DAO.snapshot().CORE_TEMP.v.toFixed(1) + '°C exceeded 1195°C setpoint. All control rods inserting. Shutdown initiated.');
+        _cbs.showDemoBar('✅ AUTO-SCRAM EXECUTED — Reactor Protection System actuated', '#159647');
+        this.stop();
+        return;
+      }
+
+      scheduleRender();
+      if (this.active && !S.scramActive) this._t(escalate, 1200);
+    };
+
+    this._t(escalate, 2500);
+  },
+
+  // ─── SCENARIO B: Loss of Coolant Flow (LOCA) ───────────────────
+  runLOCA() {
+    this.stop();
+    this.active = true; this.name = 'LOCA';
+    dispatch(A.SET_DEMO_MODE, { active:true });
+    dispatch(A.LOG, { msg:'DEMO SCENARIO B: LOCA initiated' });
+
+    _cbs.showDemoBar('SCENARIO B — LOCA: Pump-A bearing seizure detected', '#e31a1a');
+    this.startCountdown(180);
+
+    DAO.override('PUMP_A', 0);
+    DAO.override('SEC_FLOW', 1400);
+
+    dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-B01', p:1, tag:'N-PMP-A-01', msg:'PUMP-A BEARING SEIZURE — Loop-A primary flow lost', acked:false, ts:ts() }});
+    dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-B02', p:2, tag:'F-PRI-01',   msg:'Primary flow: 48% nominal — Lo-Low trip armed',    acked:false, ts:ts() }});
+    _cbs.addAIMessage('🚨 LOCA DETECTED: Pump-A catastrophic bearing failure. Loop-A primary flow: 0%. Single-pump operation on Pump-B. Core thermal margins reducing rapidly — recommend SCRAM within 60 seconds.');
+
+    const su = document.getElementById('sidebar-unit-state');
+    if (su) { su.textContent = 'Unit 4: LOCA ACTIVE'; su.style.color = '#e31a1a'; }
+
+    this._t(() => {
+      _cbs.addAIMessage('⚠ Primary flow at 48% nominal. Lo-Flow trip threshold breached. Natural circulation establishing. Core heat removal degrading — MANUAL SCRAM STRONGLY ADVISED.');
+      DAO.inject('PRIM_PRESS', 15);
+    }, 4000);
+
+    let step = 0;
+    const escalate = () => {
+      if (!this.active || S.scramActive) return;
+      step++;
+
+      DAO.inject('CORE_TEMP', 7 + step * 0.6);
+      DAO.inject('COOLANT_OUT', 3.5);
+      DAO.inject('PRIM_PRESS', 1.8);
+      DAO.inject('NEUTRON_FLUX', 0.06);
+
+      const margin = (DAO.snapshot().CORE_TEMP.v - 900) / 300;
+      _cbs.setEmergencyOverlay(Math.max(0, (margin - 0.4) * 2));
+
+      if (step === 6) {
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-B03', p:1, tag:'T-CORE-01', msg:`Core temp ${DAO.snapshot().CORE_TEMP.v.toFixed(0)}°C rising rapidly`, acked:false, ts:ts() }});
+        _cbs.addAIMessage('🚨 CORE TEMP: ' + DAO.snapshot().CORE_TEMP.v.toFixed(1) + '°C · Rate: +' + (7+step*.6).toFixed(0) + '°C/min. Pump-B overloaded at 118% rated. Risk of second pump failure. SCRAM AND DEPRESSURIZE NOW.');
+        _cbs.showDemoBar('🚨 P1 LOCA — Core temp ' + DAO.snapshot().CORE_TEMP.v.toFixed(0) + '°C rising — SCRAM REQUIRED', '#e31a1a');
+        this.startCountdown(120);
+      }
+
+      if (DAO.snapshot().CORE_TEMP.v > 1180 && !S.scramActive) {
+        dispatch(A.AUTO_SCRAM);
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-B-SCRAM', p:1, tag:'SCRAM', msg:'AUTO-SCRAM: Core temp/flow trip actuated by RPS', acked:false, ts:ts() }});
+        _cbs.addAIMessage('🚨 REACTOR PROTECTION SYSTEM ACTUATED. Core temp ' + DAO.snapshot().CORE_TEMP.v.toFixed(1) + '°C, primary flow < 40% nominal. All control rods inserting. Passive lead cooling: ACTIVATED.');
+        _cbs.showDemoBar('✅ RPS SCRAM EXECUTED — Passive lead cooling now active', '#159647');
+        this.stop();
+        return;
+      }
+
+      scheduleRender();
+      if (this.active && !S.scramActive) this._t(escalate, 900);
+    };
+
+    this._t(escalate, 5000);
+  },
+
+  // ─── SCENARIO C: Multi-System Station Blackout ──────────────────
+  runBlackout() {
+    this.stop();
+    this.active = true; this.name = 'BLACKOUT';
+    dispatch(A.SET_DEMO_MODE, { active:true });
+    dispatch(A.LOG, { msg:'DEMO SCENARIO C: Station Blackout initiated' });
+
+    _cbs.showDemoBar('SCENARIO C — STATION BLACKOUT: Total AC power loss · EDG starting', '#e31a1a');
+    this.startCountdown(120);
+
+    const su = document.getElementById('sidebar-unit-state');
+    if (su) { su.textContent = 'Unit 4: BLACKOUT'; su.style.color = '#e31a1a'; }
+
+    [
+      { id:'DEMO-C01', p:1, tag:'V-GRID-01',   msg:'STATION BLACKOUT — All AC buses lost · EDG starting'},
+      { id:'DEMO-C02', p:1, tag:'N-PMP-A-01',  msg:'PUMP-A coast-down — AC power lost'},
+      { id:'DEMO-C03', p:1, tag:'N-PMP-B-01',  msg:'PUMP-B coast-down — AC power lost'},
+      { id:'DEMO-C04', p:2, tag:'V-SCR-01',    msg:'SCRAM bus degrading — battery backup active'},
+    ].forEach(alarm => dispatch(A.ADD_ALARM, { alarm:{ ...alarm, acked:false, ts:ts() }}));
+
+    _cbs.addAIMessage('🚨 STATION BLACKOUT CONDITION: All AC power buses de-energized. Emergency Diesel Generators starting (T+15s expected). Battery-backed SCRAM system ACTIVE. Lead-bismuth passive cooling: INITIATING.');
+
+    let step = 0;
+    const degrade = () => {
+      if (!this.active) return;
+      step++;
+
+      DAO.override('PUMP_A', Math.max(0, DAO.snapshot().PUMP_A.v - 250));
+      DAO.override('PUMP_B', Math.max(0, DAO.snapshot().PUMP_B.v - 220));
+      DAO.override('GRID_OUT', Math.max(0, DAO.snapshot().GRID_OUT.v - 40));
+      DAO.override('TURBINE_RPM', Math.max(0, DAO.snapshot().TURBINE_RPM.v - 180));
+      DAO.inject('CORE_TEMP', 9);
+      DAO.inject('PRIM_PRESS', 3);
+      DAO.override('SCRAM_V', Math.max(0, DAO.snapshot().SCRAM_V.v - 0.35));
+      DAO.override('SEC_FLOW', Math.max(0, DAO.snapshot().SEC_FLOW.v - 200));
+
+      _cbs.setEmergencyOverlay(Math.min(1, step * 0.1));
+
+      if (step === 3) {
+        _cbs.addAIMessage('⚠ EDG-1 START FAILURE. EDG-2 attempt in progress. Natural circulation in primary loop — passive lead flow rate: 12% nominal. Decay heat accumulation: CRITICAL CONCERN.');
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-C05', p:1, tag:'T-CORE-01', msg:`Core temp ${DAO.snapshot().CORE_TEMP.v.toFixed(0)}°C — decay heat accumulating`, acked:false, ts:ts() }});
+        _cbs.showDemoBar('🚨 EDG FAILURE — Decay heat accumulating — SCRAM IMMINENT', '#e31a1a');
+        this.startCountdown(60);
+      }
+
+      if (step === 6) {
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-C06', p:1, tag:'V-SCR-01', msg:'SCRAM bus voltage: 37.8V — threshold approaching', acked:false, ts:ts() }});
+        _cbs.addAIMessage('🚨 EDG-2 FAILED. SCRAM bus voltage: ' + DAO.snapshot().SCRAM_V.v.toFixed(1) + 'V — approaching undervoltage trip. Battery reserve: ~4 minutes. PASSIVE SCRAM ACTUATING.');
+      }
+
+      if ((step >= 8 || DAO.snapshot().SCRAM_V.v < 38.5) && !S.scramActive) {
+        dispatch(A.AUTO_SCRAM);
+        dispatch(A.ADD_ALARM, { alarm:{ id:'DEMO-C-SCRAM', p:1, tag:'SCRAM', msg:'PASSIVE SCRAM: Gravity-drop rods by SCRAM bus undervoltage', acked:false, ts:ts() }});
+        _cbs.addAIMessage('✅ PASSIVE SCRAM COMPLETE. Gravity-drop control rods fully inserted. Decay heat removal via passive lead-bismuth convection. Core temp trending toward stable. Plant in SAFE SHUTDOWN state.');
+        _cbs.showDemoBar('✅ PASSIVE SCRAM & SAFE SHUTDOWN — Passive LBE cooling active', '#159647');
+        const su2 = document.getElementById('sidebar-unit-state');
+        if (su2) { su2.textContent = 'Unit 4: Safe Shutdown'; su2.style.color = '#d97d06'; }
+        this.stop();
+        return;
+      }
+
+      scheduleRender();
+      if (this.active && !S.scramActive) this._t(degrade, 1000);
+    };
+
+    this._t(degrade, 2000);
+  },
+};
