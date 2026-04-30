@@ -44,6 +44,7 @@ export const ACTION_TYPES = Object.freeze({
   TOGGLE_AUDIT:         'TOGGLE_AUDIT',
   TOGGLE_HIGH_CONTRAST: 'TOGGLE_HIGH_CONTRAST',
   SET_DEMO_MODE:        'SET_DEMO_MODE',
+  TOGGLE_PREDICTION:    'TOGGLE_PREDICTION',
 
   // ── Configuration Layer (WP 1.3 — AAS IEC 63278 / ISA-101 §5.4) ──────────
   CONFIG_UPDATE:        'CONFIG_UPDATE',

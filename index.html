@@ -406,6 +406,13 @@
           id="audit-badge">0</span>
       </button>
 
+      <!-- PREDICT BUTTON — toggle predictive trend overlay -->
+      <button id="btn-toggle-prediction" title="Toggle Predictive Trend Projection"
+        class="flex items-center gap-1.5 px-3 py-1.5 border border-[#159647]/50 bg-[#159647]/10 hover:bg-[#159647]/20 text-[#159647] transition-colors">
+        <span class="ms material-symbols-outlined text-[15px]">trending_up</span>
+        <span class="tv text-[12px] font-bold uppercase tracking-wider">PREDICT</span>
+      </button>
+
       <!-- DEMO BUTTON — prominent, always visible -->
       <button id="btn-demo" title="Emergency Scenario Simulator"
         class="flex items-center gap-1.5 px-3 py-1.5 border border-[#cd5c08]/50 bg-[#cd5c08]/10 hover:bg-[#cd5c08]/20 text-[#cd5c08] transition-colors">
@@ -683,6 +690,7 @@
                   <line id="ct-trip-line" x1="0" y1="12" x2="300" y2="12" class="chart-trip" />
                   <path id="ct-pred" d="" class="chart-pred" />
                   <path id="ct-rt" d="" class="chart-rt" />
+                  <g id="ct-prediction"></g>
                   <line x1="150" y1="0" x2="150" y2="100" stroke="#343a40" stroke-width=".4" stroke-dasharray="2,4"
                     opacity=".4" />
                 </svg>
@@ -691,6 +699,7 @@
                 <span>T-10m</span><span>T-5m</span><span
                   class="text-[#212529] font-bold">NOW</span><span>T+5m</span><span>T+10m</span>
               </div>
+              <div id="ct-time-to-trip" class="tv text-[10px] font-bold uppercase tracking-wider mt-1 text-center text-[#6c757d]">—</div>
             </div>
             <div class="bg-[#f4f6f8] border border-[rgba(0,0,0,.06)] p-3 relative flex flex-col">
               <div class="flex justify-between items-start mb-2 flex-shrink-0">
@@ -710,6 +719,7 @@
                   <line id="cp-trip-line" x1="0" y1="12" x2="300" y2="12" class="chart-trip" />
                   <path id="cp-pred" d="" class="chart-pred" />
                   <path id="cp-rt" d="" class="chart-rt" />
+                  <g id="cp-prediction"></g>
                   <line x1="150" y1="0" x2="150" y2="100" stroke="#343a40" stroke-width=".4" stroke-dasharray="2,4"
                     opacity=".4" />
                 </svg>
@@ -718,6 +728,7 @@
                 <span>T-10m</span><span>T-5m</span><span
                   class="text-[#212529] font-bold">NOW</span><span>T+5m</span><span>T+10m</span>
               </div>
+              <div id="cp-time-to-trip" class="tv text-[10px] font-bold uppercase tracking-wider mt-1 text-center text-[#6c757d]">—</div>
             </div>
           </div>
         </div>
