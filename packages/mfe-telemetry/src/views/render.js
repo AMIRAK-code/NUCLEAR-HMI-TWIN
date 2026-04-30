@@ -1,12 +1,9 @@
-import { ACTION_TYPES as A } from '../../constants/actionTypes.js';
-import { DAO } from '../dao.js';
-import { ts, pct, setText, setAttr, dlFile } from '../../utils.js';
-import { dispatch, scheduleRender } from '../reducer.js';
-import { renderConfigPanel } from './render-config.js';
-import { ConfigService }  from '../config-service.js';
-import { UnitConverter }  from '../unit-converter.js';
-import { Predictor }      from '../predictor.js';
-import { TelemetryBuffer } from '../telemetry-buffer.js';
+import {
+  ACTION_TYPES as A,
+  DAO, ConfigService, UnitConverter,
+  ts, pct, setText, setAttr, dlFile,
+  dispatch, scheduleRender, callRenderer,
+} from '@sentinel/shared';
 
 // ── Display helper: convert sensor value to current unit mode ─────────────────
 function _disp(v, u) {
@@ -38,7 +35,9 @@ export function render(s) {
   renderCopilotSteps(s);
   renderSystemHealth(s);
   renderCyberPanel(s);
-  renderConfigPanel(s);   // SCR-14 — Platform Configuration Manager (CMP-24)
+  // Config panel is delegated to mfe-config via the renderer registry.
+  // If mfe-config failed to load, callRenderer is a no-op — telemetry is unaffected.
+  callRenderer('configPanel', s);
 }
 
 export function renderRole(s) {
@@ -64,24 +63,21 @@ export function renderPanels(s) {
 
 export function renderAlarmBanner(s) {
   const banner = document.getElementById('alarm-banner');
-  // ISA-101: Shelved alarms are suppressed from the active banner
   const active = s.alarms.filter(a => !a.acked && !a.shelved);
   if (s.bannerOn && active.length > 0) {
     banner.style.height = '2.25rem';
-    
-    // Calculate priority counts
+
     const counts = { 1:0, 2:0, 3:0 };
     active.forEach(a => counts[a.p]++);
-    
+
     const top = active.reduce((a,b) => a.p < b.p ? a : b);
     const col   = top.p===1?'#e31a1a':top.p===2?'#d97d06':'#cd5c08';
     const bg    = top.p===1?'#fcdcdc':top.p===2?'#fcecd5':'#fce3d5';
     document.getElementById('alarm-inner').style.background = bg;
     document.getElementById('alarm-icon').style.color = col;
-    
-    // Add priority count indicator
+
     const countText = `[P1:${counts[1]} P2:${counts[2]} P3:${counts[3]}] `;
-    
+
     document.getElementById('alarm-text').style.color = col;
     document.getElementById('alarm-text').textContent = countText + active
       .sort((a,b)=>a.p-b.p)
@@ -96,7 +92,7 @@ export function renderAlarmBanner(s) {
 
 export function renderHUD(s) {
   const ss = s.sensors;
-  const m  = ConfigService.get('measures') ?? {};   // live setpoints from ConfigService
+  const m  = ConfigService.get('measures') ?? {};
 
   const _inletD  = _disp(ss.COOLANT_IN?.v,    ss.COOLANT_IN?.u  ?? 'K');
   const _coreD   = _disp(ss.CORE_TEMP?.v,     ss.CORE_TEMP?.u   ?? '°C');
@@ -109,7 +105,6 @@ export function renderHUD(s) {
   setText('chart1-val', _coreD.val);
   setText('chart2-val', _pressD.val);
 
-  // ── Thermal margin to trip — driven by ConfigService (live setpoints) ────────
   if (ss.CORE_TEMP?.v != null) {
     const tripHigh = m.CORE_TEMP?.tripHigh ?? ss.CORE_TEMP.trip ?? 1200;
     const tripLow  = m.CORE_TEMP?.tripLow  ?? ss.CORE_TEMP.low  ?? 900;
@@ -123,7 +118,6 @@ export function renderHUD(s) {
     setText('margin-pct', pctVal + '%');
   }
 
-  // ── Power bar (% of rated from ConfigService nominalHigh for GRID_OUT) ───────
   if (ss.GRID_OUT?.v != null) {
     const rated = m.GRID_OUT?.nominalHigh ?? 500;
     const pwr   = Math.min(100, (ss.GRID_OUT.v / rated) * 100);
@@ -135,8 +129,6 @@ export function renderHUD(s) {
     setText('power-pct', pwr.toFixed(1) + '%');
   }
 
-  // ── HUD card alarm-state colors — ISA-101 visual urgency ─────────────────
-  // Maps each HUD card ID → the sensor key that drives its alarm state
   const hudCards = [
     { id: 'hud-card-inlet',  key: 'COOLANT_IN'   },
     { id: 'hud-card-flux',   key: 'NEUTRON_FLUX'  },
@@ -150,7 +142,6 @@ export function renderHUD(s) {
     if (!card) return;
     const sensor = ss[key];
     const st     = sensor ? DAO.status(sensor) : 'nominal';
-    // ISA-101: alarm = red border + tint, warning = amber, nominal = default
     const borderCol = st === 'alarm'   ? '#e31a1a'
                     : st === 'warning' ? '#d97d06'
                     : st === 'low'     ? '#cd5c08'
@@ -284,107 +275,38 @@ export function renderCyberPanel(s) {
 export function renderCharts(s) {
   const m = ConfigService.get('measures') ?? {};
 
-  // ── Live setpoints from ConfigService — trip lines move when AS edits them ──
   const ctLo = m.CORE_TEMP?.tripLow  ?? 900;
   const ctHi = m.CORE_TEMP?.tripHigh ?? 1200;
   const ppLo = m.PRIM_PRESS?.tripLow  ?? 150;
   const ppHi = m.PRIM_PRESS?.tripHigh ?? 250;
 
-  const toY = (v, lo, hi) => Math.max(4, Math.min(96, 100 - ((v - lo) / (hi - lo)) * 84));
+  const toY = (v, lo, hi) => Math.max(4, Math.min(96, 100 - ((v-lo)/(hi-lo))*84));
 
   function buildPath(data, lo, hi) {
-    return data.map((v, i) =>
-      `${i === 0 ? 'M' : 'L'} ${((i / (data.length - 1)) * 150).toFixed(1)},${toY(v, lo, hi).toFixed(1)}`
-    ).join(' ');
+    return data.map((v,i) => `${i===0?'M':'L'} ${((i/(data.length-1))*150).toFixed(1)},${toY(v,lo,hi).toFixed(1)}`).join(' ');
+  }
+  function buildPred(data, lo, hi) {
+    const n = data.length, last = data[n-1];
+    const trend = (data[n-1] - data[Math.max(0,n-6)]) / Math.min(5,n-1);
+    let d = `M 150,${toY(last,lo,hi).toFixed(1)}`;
+    for (let i=1;i<=10;i++) d += ` L ${(150+(i/10)*150).toFixed(1)},${toY(last+trend*i*1.7,lo,hi).toFixed(1)}`;
+    return d;
   }
 
   setAttr('ct-rt',   'd', buildPath(s.histTemp,  ctLo, ctHi));
-  setAttr('ct-pred', 'd', '');
+  setAttr('ct-pred', 'd', buildPred(s.histTemp,  ctLo, ctHi));
   setAttr('cp-rt',   'd', buildPath(s.histPress, ppLo, ppHi));
-  setAttr('cp-pred', 'd', '');
+  setAttr('cp-pred', 'd', buildPred(s.histPress, ppLo, ppHi));
 
-  // Update trip-line Y positions
   const ctTripY = toY(ctHi, ctLo, ctHi).toFixed(1);
   const ppTripY = toY(ppHi, ppLo, ppHi).toFixed(1);
   setAttr('ct-trip-line', 'y1', ctTripY); setAttr('ct-trip-line', 'y2', ctTripY);
   setAttr('cp-trip-line', 'y1', ppTripY); setAttr('cp-trip-line', 'y2', ppTripY);
 
-  // Update chart labels with live setpoints (unit-converted)
   const ctLabel = document.getElementById('chart1-trip-label');
   if (ctLabel) { const d = _disp(ctHi, '°C'); ctLabel.textContent = `${d.val} ${d.u}`; }
   const ppLabel = document.getElementById('chart2-trip-label');
   if (ppLabel) { const d = _disp(ppHi, 'PSI'); ppLabel.textContent = `${d.val} ${d.u}`; }
-
-  // ── Predictive trend overlay ──────────────────────────────────────────────
-  const predEnabled = s.ui?.predictionEnabled ?? true;
-  const bufLen      = TelemetryBuffer.get().length;
-
-  // Update PREDICT button visual state
-  const btnPred = document.getElementById('btn-toggle-prediction');
-  if (btnPred) {
-    if (predEnabled) {
-      btnPred.style.borderColor  = 'rgba(21,150,71,0.5)';
-      btnPred.style.background   = 'rgba(21,150,71,0.15)';
-      btnPred.style.color        = '#159647';
-    } else {
-      btnPred.style.borderColor  = 'rgba(0,0,0,0.08)';
-      btnPred.style.background   = '';
-      btnPred.style.color        = '#6c757d';
-    }
-  }
-
-  const ctG = document.getElementById('ct-prediction');
-  const cpG = document.getElementById('cp-prediction');
-
-  if (!predEnabled || bufLen < 10) {
-    if (ctG) ctG.innerHTML = '';
-    if (cpG) cpG.innerHTML = '';
-    _setTripIndicator('ct-time-to-trip', null, bufLen);
-    _setTripIndicator('cp-time-to-trip', null, bufLen);
-    return;
-  }
-
-  // Core Temperature prediction
-  const ctPred = Predictor.predict('CORE_TEMP', ctHi, ctLo);
-  if (ctG) ctG.innerHTML = _predPolyline(ctPred.projectedValues, ctLo, ctHi, toY);
-  _setTripIndicator('ct-time-to-trip', ctPred.timeToTrip, bufLen);
-
-  // Primary Pressure prediction
-  const ppPred = Predictor.predict('PRIM_PRESS', ppHi, ppLo);
-  if (cpG) cpG.innerHTML = _predPolyline(ppPred.projectedValues, ppLo, ppHi, toY);
-  _setTripIndicator('cp-time-to-trip', ppPred.timeToTrip, bufLen);
-}
-
-// Build SVG polyline points string for projection (x: 150→300, y: toY mapped)
-function _predPolyline(values, lo, hi, toY) {
-  if (values.length < 2) return '';
-  const n   = values.length;
-  const pts = values.map((v, i) => {
-    const x = (150 + (i / (n - 1)) * 150).toFixed(1);
-    const y = toY(v, lo, hi).toFixed(1);
-    return `${x},${y}`;
-  }).join(' ');
-  return `<polyline points="${pts}" fill="none" stroke="#212529" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.5"/>`;
-}
-
-// Update the time-to-trip indicator element
-function _setTripIndicator(id, timeToTrip, bufLen) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (bufLen < 10) {
-    el.textContent = '—';
-    el.style.color = '#6c757d';
-    return;
-  }
-  if (timeToTrip === null) {
-    el.textContent = '✓ SAFE';
-    el.style.color = '#159647';
-  } else {
-    const m = Math.floor(timeToTrip / 60);
-    const sec = String(Math.round(timeToTrip % 60)).padStart(2, '0');
-    el.textContent = `⚠ TRIP IN ${m}:${sec}`;
-    el.style.color = '#e31a1a';
-  }
 }
 
 export function renderAuditPanel(s) {
@@ -434,7 +356,6 @@ export function renderSafetyPanel(s) {
   const it = document.getElementById('interlock-table');
   if (it && s.interlocks) {
     const m = ConfigService.get('measures') ?? {};
-    // Map interlock sensor keys to configService measures for live SP display
     const spMap = {
       'T-CORE-01':  m.CORE_TEMP   ? `${m.CORE_TEMP.tripHigh} ${m.CORE_TEMP.unit}`   : null,
       'F-PRI-01':   m.SEC_FLOW    ? `${m.SEC_FLOW.tripLow} ${m.SEC_FLOW.unit}`       : null,
@@ -444,7 +365,7 @@ export function renderSafetyPanel(s) {
     };
     it.innerHTML = s.interlocks.map(i => {
       const c  = i.st==='OFFLINE'?'#6c757d':i.st==='TRIPPED'?'#e31a1a':'#159647';
-      const sp = spMap[i.tag] ?? i.sp;   // live SP from ConfigService, fall back to model
+      const sp = spMap[i.tag] ?? i.sp;
       return `<div class="flex items-center justify-between py-2 border-b border-[rgba(0,0,0,.04)]">
         <div>
           <div class="tv text-[12px] font-bold text-[#212529]">${i.label}</div>
@@ -464,9 +385,8 @@ export function renderSecondaryStats(s) {
   if (!el) return;
   el.innerHTML = '';
   const ss = s.sensors;
-  const m  = ConfigService.get('measures') ?? {};   // live setpoints
+  const m  = ConfigService.get('measures') ?? {};
 
-  // Ranges pulled from ConfigService — update live when AS changes thresholds
   [
     { label:'SG Inlet Temperature', k:'SG_INLET',   col:'#cd5c08',
       lo: m.SG_INLET?.tripLow  ?? 420, hi: m.SG_INLET?.tripHigh  ?? 550 },
@@ -515,20 +435,16 @@ export function renderSecondaryStats(s) {
   if (ss.SG_INLET) setText('svg-sec-cold', `← ${(ss.SG_INLET.v - 100).toFixed(1)}°C`);
   if (ss.STEAM_PRESS) setText('svg-sec-steam', `STEAM ${DAO.fmt(ss.STEAM_PRESS)} bar`);
 
-  // ── P&ID live pipe colors — ISA-101 alarm state visual feedback ──────────
-  // Hot lead pipe: color shifts from nominal orange → P2 amber → P1 red
   const hotPipe = document.getElementById('pid-hot-pipe');
   if (hotPipe && ss.SG_INLET) {
     const hst = DAO.status(ss.SG_INLET);
     hotPipe.style.stroke = hst === 'alarm' ? '#e31a1a' : hst === 'warning' ? '#d97d06' : '#cd5c08';
   }
-  // Steam pipe: color shifts with steam pressure alarm state
   const steamPipe = document.getElementById('pid-steam-pipe');
   if (steamPipe && ss.STEAM_PRESS) {
     const sst = DAO.status(ss.STEAM_PRESS);
     steamPipe.style.stroke = sst === 'alarm' ? '#e31a1a' : sst === 'warning' ? '#d97d06' : '#cd5c08';
   }
-  // Cold return pipe: tracks secondary flow — grey nominal, red on low-flow trip
   const coldPipe = document.getElementById('pid-cold-pipe');
   if (coldPipe && ss.SEC_FLOW) {
     const cst = DAO.status(ss.SEC_FLOW);
@@ -589,7 +505,7 @@ export function renderAnomalyList(s) {
   }
   el.innerHTML = active.map(a => {
     const col   = a.p===1 ? '#e31a1a' : a.p===2 ? '#d97d06' : '#cd5c08';
-    const shape = a.p===1 ? '■' : a.p===2 ? '▲' : '●'; // ISA-101 shapes
+    const shape = a.p===1 ? '■' : a.p===2 ? '▲' : '●';
 
     return `<div class="p-3 border border-l-4 space-y-1 mb-2 transition-all" style="border-color:${col}33;border-left-color:${col};background:${a.shelved?'#f4f6f8':col+'09'};opacity:${a.shelved?0.6:1}">
       <div class="flex justify-between items-start">

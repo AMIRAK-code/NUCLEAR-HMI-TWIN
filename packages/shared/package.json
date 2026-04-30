@@ -1,0 +1,13 @@
+{
+  "name": "@sentinel/shared",
+  "version": "4.3.0",
+  "description": "CORE-SENTINEL shared business logic — singleton across all MFEs",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./constants/actionTypes.js": "./constants/actionTypes.js",
+    "./src/*": "./src/*.js"
+  },
+  "private": true
+}

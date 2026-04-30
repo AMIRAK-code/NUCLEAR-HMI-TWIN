@@ -1,15 +1,13 @@
-import { ACTION_TYPES as A } from '../constants/actionTypes.js';
-import { S, setS } from './model.js';
-import { DAO } from './dao.js';
-import { dispatch, scheduleRender } from './reducer.js';
-import { ts, p2, p3, escHtml, dlFile, setText, setAttr } from '../utils.js';
-import { ScenarioEngine } from './scenario-engine.js';
-import { renderDiagnostics } from './views/render.js';
-import { RBACContext, bindGuardedButton } from './rbac-factory.js';
-import { ConfigService }  from './config-service.js';
-import { TelemetryBuffer } from './telemetry-buffer.js';
-import { UnitConverter }   from './unit-converter.js';
-
+import {
+  ACTION_TYPES as A,
+  S, setS,
+  DAO,
+  dispatch, scheduleRender,
+  ts, dlFile, setText,
+  ScenarioEngine, registerScenarioCallbacks,
+  RBACContext, bindGuardedButton,
+  ConfigService, TelemetryBuffer, UnitConverter,
+} from '@sentinel/shared';
 
 // ═══════════════════════════════════════════════════════════════════
 let _onConfirm = null;
@@ -72,6 +70,10 @@ export function setEmergencyOverlay(opacity) {
   if (el) el.style.opacity = Math.min(1, opacity);
 }
 
+// Wire scenario-engine callbacks immediately on module load —
+// ScenarioEngine uses these for UI effects during demo scenarios
+registerScenarioCallbacks({ addAIMessage, showDemoBar, setEmergencyOverlay, hideDemoBar });
+
 // ═══════════════════════════════════════════════════════════════════
 export function bindAll() {
   // Modal controls
@@ -90,12 +92,9 @@ export function bindAll() {
       const aiTs = document.getElementById('ai-init-ts');
       if (aiTs) aiTs.textContent = ts();
 
-      // ── RBAC: activate component factory for this role ──────────
       RBACContext.setRole(role);
-      // Show Cybersecurity nav item only for AS
       const navCyber = document.getElementById('nav-cyber');
       if (navCyber) navCyber.style.display = role === 'AS' ? '' : 'none';
-      // Config Manager: AS = full edit; OD = read + draft submission
       const navConfig = document.getElementById('nav-config');
       if (navConfig) navConfig.style.display = (role === 'AS' || role === 'OD') ? '' : 'none';
       const navConfigTab = document.getElementById('nav-config-tab');
@@ -110,9 +109,6 @@ export function bindAll() {
       if (panel) dispatch(A.NAVIGATE, {panel});
     });
   });
-
-  // Predictive trend overlay toggle
-  document.getElementById('btn-toggle-prediction')?.addEventListener('click', () => dispatch(A.TOGGLE_PREDICTION));
 
   // Alarm banner
   document.getElementById('btn-ack-all')?.addEventListener('click', () => dispatch(A.ACK_ALL));
@@ -218,7 +214,6 @@ export function bindAll() {
         if (hcChecked !== S.highContrast) dispatch(A.TOGGLE_HIGH_CONTRAST);
       }
     });
-    // Wire unit toggle buttons (inside modal, after DOM settles)
     setTimeout(() => {
       document.getElementById('s-unit-metric')?.addEventListener('click', () => {
         UnitConverter.setMode('metric');
@@ -235,7 +230,6 @@ export function bindAll() {
     }, 50);
   });
 
-  // Re-render whenever unit mode changes (e.g. triggered from Config Manager)
   document.addEventListener('dao:unit:changed', () => scheduleRender());
 
   // Logout
@@ -250,7 +244,7 @@ export function bindAll() {
         setTimeout(() => {
           const overlay = document.getElementById('role-overlay');
           if (overlay) overlay.style.display = 'flex';
-          dispatch(A.SET_ROLE, {role: null}); 
+          dispatch(A.SET_ROLE, {role: null});
         }, 300);
       }
     });
@@ -264,9 +258,8 @@ export function bindAll() {
     });
   });
 
-  // ── Guarded Buttons (Safety Critical — IDs from component-registry.js) ──
+  // ── Guarded Buttons (Safety Critical) ────────────────────────────────────
 
-  // SCRAM Control (CMP-09)
   bindGuardedButton('btn-scram', 'CMP-09', 'U', () => {
     if (S.scramActive) return;
     showModal({
@@ -281,19 +274,15 @@ export function bindAll() {
     });
   }, showModal);
 
-  // Emergency Depressurize (CMP-12)
   bindGuardedButton('btn-depressurize', 'CMP-12', 'U', () => {
     showModal({
       icon:'warning', title:'Emergency Depressurize',
       content:'<p class="tv text-sm text-[#d97d06]">Confirm secondary circuit depressurization?</p>',
       primary:'CONFIRM', secondary:'CANCEL',
-      onConfirm: () => {
-        dispatch(A.LOG,{msg:'Emergency depressurization — ERV-01 opened'});
-      }
+      onConfirm: () => { dispatch(A.LOG,{msg:'Emergency depressurization — ERV-01 opened'}); }
     });
   }, showModal);
 
-  // Reset Interlocks (CMP-13)
   bindGuardedButton('btn-reset-locks', 'CMP-13', 'U', () => {
     showModal({
       icon:'settings', title:'Reset Protection Interlocks',
@@ -303,12 +292,10 @@ export function bindAll() {
     });
   }, showModal);
 
-  // Auto-Pilot Toggle (CMP-17)
   bindGuardedButton('btn-auto-pilot', 'CMP-17', 'U', () => {
     dispatch(A.TOGGLE_AUTOPILOT);
   }, showModal);
 
-  // Diagnostic Export (CMP-19)
   bindGuardedButton('btn-diag-export', 'CMP-19', 'R', () => {
     const csv = 'Tag,Label,Value\n' + Object.values(S.sensors).map(s=>`"${s.tag}","${s.label}","${s.v}"`).join('\n');
     dlFile(csv, `sensors-${Date.now()}.csv`, 'text/csv');
@@ -318,8 +305,8 @@ export function bindAll() {
   document.getElementById('btn-ai-query')?.addEventListener('click', handleAIQuery);
   document.getElementById('ai-query-input')?.addEventListener('keydown', e => { if(e.key==='Enter') handleAIQuery(); });
 
-  // Diagnostics search
-  document.getElementById('diag-search')?.addEventListener('input', () => renderDiagnostics(S));
+  // Diagnostics search — triggers full re-render (mfe-telemetry handles renderDiagnostics)
+  document.getElementById('diag-search')?.addEventListener('input', () => scheduleRender());
 }
 
 function handleAIQuery() {
@@ -345,7 +332,7 @@ export function startClock() {
       el.textContent = `${get('hour')}:${get('minute')}:${get('second')} IT`;
     }
   }
-  tick(); // immediate first paint — no 1 s blank
+  tick();
   setInterval(tick, 1000);
 }
 
@@ -366,15 +353,12 @@ export function resetSessionTimer() {
   }, SESSION_TIMEOUT_MS);
 }
 
-// ── Auto-Alarm Engine ─────────────────────────────────────────────────────────
+// ── Auto-Alarm Engine ─────────────────────────────────────────────
 // ISA-101 §5.3 / IEC 61511 SIL-2 — check all 16 sensors each tick
-// against live ConfigService setpoints and auto-raise/clear alarms.
-
-// Track which auto-alarms are currently active so we don't spam duplicates
 const _activeAutoAlarms = new Set();
 
 function _runAlarmEngine(snapshot) {
-  if (ScenarioEngine.active) return; // Scenario engine manages its own alarms
+  if (ScenarioEngine.active) return;
   const measures = ConfigService.get('measures') ?? {};
 
   Object.entries(snapshot).forEach(([key, sensor]) => {
@@ -388,7 +372,6 @@ function _runAlarmEngine(snapshot) {
     const alarmIdHi = `AUTO-${key}-HI`;
     const alarmIdLo = `AUTO-${key}-LO`;
 
-    // ── High trip ───────────────────────────────────────────────────
     if (tripHigh > 0 && v >= tripHigh) {
       if (!_activeAutoAlarms.has(alarmIdHi) && !S.alarms.find(a => a.id === alarmIdHi && !a.cleared)) {
         _activeAutoAlarms.add(alarmIdHi);
@@ -406,7 +389,6 @@ function _runAlarmEngine(snapshot) {
       }
     }
 
-    // ── Low trip (only where tripLow > 0 — SCRAM_V, LEAD_LEVEL etc use tripLow) ──
     if (tripLow > 0 && v <= tripLow) {
       if (!_activeAutoAlarms.has(alarmIdLo) && !S.alarms.find(a => a.id === alarmIdLo && !a.cleared)) {
         _activeAutoAlarms.add(alarmIdLo);
@@ -425,7 +407,7 @@ function _runAlarmEngine(snapshot) {
     }
   });
 
-  // ── SCRAM bus undervoltage — Safety-critical (IEC 61511) ─────────────────────
+  // SCRAM bus undervoltage — Safety-critical (IEC 61511)
   const scv = snapshot.SCRAM_V?.v;
   const scvTrip = measures.SCRAM_V?.tripLow ?? 40;
   if (scv != null && scv < scvTrip && !S.scramActive) {
@@ -449,7 +431,6 @@ export function startDataLoop() {
     const snapshot = DAO.snapshot();
     dispatch(A.TICK, { snapshot });
 
-    // ── Session timeout warning ─────────────────────────────────────────────
     if (S.lastActivity && !_sessionWarnShown) {
       const idleMs = Date.now() - S.lastActivity;
       if (idleMs > SESSION_TIMEOUT_MS - TIMEOUT_WARN_MS) {
@@ -464,13 +445,9 @@ export function startDataLoop() {
       }
     }
 
-    // ── Record to telemetry buffer (historical validation) ───────────────────
     TelemetryBuffer.record(snapshot);
-
-    // ── Full auto-alarm engine (all 16 sensors vs live ConfigService) ─────────
     _runAlarmEngine(snapshot);
 
-    // ── Copilot delta display ─────────────────────────────────────────────────
     if (snapshot.PRIM_PRESS?.v != null) {
       const nominal = (ConfigService.get('measures')?.PRIM_PRESS?.nominalHigh) ?? 214.8;
       const delta = (snapshot.PRIM_PRESS.v - nominal).toFixed(1);

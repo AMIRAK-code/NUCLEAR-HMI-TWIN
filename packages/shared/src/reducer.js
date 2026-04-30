@@ -4,15 +4,16 @@
  *
  * Pure function: (state, intent, payload) => newState
  * All state updates use immutable spread patterns — no direct mutation.
+ *
+ * MFE NOTE: render() is no longer called directly here.
+ * dispatch() fires the 'sentinel:render' CustomEvent; each MFE's mount()
+ * subscribes independently so a crash in one MFE cannot silence the others.
  */
 import { S, setS, mkModel } from './model.js';
 import { mkEntry } from '../utils.js';
-import { render } from './views/render.js';
 import { ACTION_TYPES as A } from '../constants/actionTypes.js';
 
 // ── RBAC Permission Matrix (ISA-101 §6.5 / NUREG-0700) ────────────────────
-// Only intents that are RESTRICTED appear here.
-// Intents not listed are freely accessible to any authenticated role.
 export const INTENT_PERMISSIONS = Object.freeze({
   [A.SCRAM]:             ['OD', 'AS'],
   [A.RESET_SCRAM]:       ['AS'],
@@ -21,34 +22,41 @@ export const INTENT_PERMISSIONS = Object.freeze({
   [A.SHELF_ALARM]:       ['OD', 'AS'],
   [A.UNSHELVE_ALARM]:    ['OD', 'AS'],
   [A.ADVANCE_PROTOCOL]:  ['OD', 'AS'],
-  // Config layer — write actions restricted to AS (SCR-14)
   [A.CONFIG_UPDATE]:     ['AS'],
   [A.CONFIG_ROLLBACK]:   ['AS'],
   [A.CONFIG_IMPORT]:     ['AS'],
   [A.CONFIG_RESET]:      ['AS'],
 });
 
+// ── Renderer Registry — cross-MFE render delegation ──────────────────────
+// Each MFE calls registerRenderer(name, fn) from its mount().
+// callRenderer(name, s) invokes the fn if loaded; errors are isolated per MFE.
+const _renderers = new Map();
+export function registerRenderer(name, fn) { _renderers.set(name, fn); }
+export function callRenderer(name, ...args) {
+  const fn = _renderers.get(name);
+  if (fn) {
+    try { fn(...args); }
+    catch (e) { console.error(`[MFE:${name}] renderer error — isolated, other MFEs unaffected:`, e); }
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // reduce — The central state machine.
 // ═══════════════════════════════════════════════════════════════════════════
 export function reduce(s, intent, p = {}) {
-  // ── RBAC Guard (ISA-101 §6.5) ──────────────────────────────────────────
-  // Guard runs unconditionally — no window dependency so it works in Node/test env.
   if (INTENT_PERMISSIONS[intent]) {
     const allowed = INTENT_PERMISSIONS[intent];
     if (!s.role || !allowed.includes(s.role)) {
       const denyMsg = `SECURITY: Intent "${intent}" denied — role ${s.role || 'NONE'} lacks permission`;
       console.warn(`[RBAC] ${denyMsg}`);
-      // Return current state unchanged — immutable rejection.
       return { ...s, auditLog: [...s.auditLog, mkEntry(denyMsg, s.role)] };
     }
   }
 
-  // Convenience: append a new audit entry without mutating s.auditLog.
   const log = msg => [...s.auditLog, mkEntry(msg, s.role)];
 
   switch (intent) {
-    // ── Session ──────────────────────────────────────────────────────────
     case A.SET_ROLE:
       return {
         ...s,
@@ -67,11 +75,9 @@ export function reduce(s, intent, p = {}) {
         auditLog: [mkEntry('SESSION TIMEOUT: Automatic logout after inactivity', null)],
       };
 
-    // ── Navigation ───────────────────────────────────────────────────────
     case A.NAVIGATE:
       return { ...s, activePanel: p.panel, auditLog: log(`Navigated to: ${p.panel}`) };
 
-    // ── Alarm Management (ISA-101 §5) ─────────────────────────────────────
     case A.ACK_ALL:
       return {
         ...s,
@@ -83,9 +89,7 @@ export function reduce(s, intent, p = {}) {
       return { ...s, bannerOn: false };
 
     case A.ADD_ALARM: {
-      // ISA-101 §5.3: First alarm in a quiet cascade is marked firstOut.
       const hasActive = s.alarms.some(a => !a.acked && !a.cleared && !a.shelved);
-      // Enforced invariants come AFTER ...p.alarm so callers cannot pre-shelve or pre-clear an alarm.
       const newAlarm  = { ...p.alarm, cleared: false, shelved: false, firstOut: !hasActive };
       return {
         ...s,
@@ -103,7 +107,6 @@ export function reduce(s, intent, p = {}) {
       };
 
     case A.SHELF_ALARM:
-      // ISA-101 §5.6: Shelving temporarily suppresses a nuisance alarm (OD/AS only).
       return {
         ...s,
         alarms:   s.alarms.map(a => a.id === p.id ? { ...a, shelved: true } : a),
@@ -123,7 +126,6 @@ export function reduce(s, intent, p = {}) {
         alarms: s.alarms.filter(a => !a.id.startsWith(p.prefix)),
       };
 
-    // ── Safety-Critical (RBAC-guarded above) ─────────────────────────────
     case A.SCRAM:
       return {
         ...s,
@@ -159,7 +161,6 @@ export function reduce(s, intent, p = {}) {
         auditLog:     log(`SCCP-74A Step ${s.protocolStep} acknowledged`),
       };
 
-    // ── Control ───────────────────────────────────────────────────────────
     case A.TOGGLE_AUTOPILOT:
       return {
         ...s,
@@ -167,7 +168,6 @@ export function reduce(s, intent, p = {}) {
         auditLog:  log(`Auto-Pilot ${!s.autoPilot ? 'ENABLED' : 'DISABLED'}`),
       };
 
-    // ── Sensor Telemetry ──────────────────────────────────────────────────
     case A.TICK: {
       const snap = p.snapshot || s.sensors;
       return {
@@ -178,7 +178,6 @@ export function reduce(s, intent, p = {}) {
       };
     }
 
-    // ── Audit & UI ────────────────────────────────────────────────────────
     case A.LOG:
       return { ...s, auditLog: log(p.msg) };
 
@@ -189,20 +188,12 @@ export function reduce(s, intent, p = {}) {
       return { ...s, auditPanelOpen: !s.auditPanelOpen };
 
     case A.TOGGLE_HIGH_CONTRAST: {
-      // NUREG-0700 §11.4.2: High-contrast mode for varied lighting conditions.
       const hc = !s.highContrast;
       return { ...s, highContrast: hc, auditLog: log(`High-contrast mode ${hc ? 'ENABLED' : 'DISABLED'}`) };
     }
 
     case A.SET_DEMO_MODE:
       return { ...s, demoMode: p.active };
-
-    case A.TOGGLE_PREDICTION:
-      return { ...s, ui: { ...s.ui, predictionEnabled: !s.ui?.predictionEnabled } };
-
-    // ── Configuration Layer (WP 1.3 — AAS IEC 63278 / ISA-101 §5.4) ─────────
-    // ConfigService handles its own persistence; the reducer only manages
-    // UI state (active tab) and the audit log.
 
     case A.CONFIG_UPDATE:
       return {
@@ -246,14 +237,17 @@ export function dispatch(intent, payload = {}) {
   scheduleRender();
 }
 
-// ── scheduleRender — RAF-throttled render to avoid redundant paints ──────────
+// ── scheduleRender — RAF-throttled; fires 'sentinel:render' CustomEvent ────
+// Each MFE's mount() subscribes to this event independently.
+// A crash in one MFE render function cannot affect others (errors are caught
+// in callRenderer() above, not here).
 let _renderQueued = false;
 export function scheduleRender() {
   if (!_renderQueued) {
     _renderQueued = true;
     requestAnimationFrame(() => {
       _renderQueued = false;
-      render(S);
+      document.dispatchEvent(new CustomEvent('sentinel:render', { detail: S }));
     });
   }
 }
