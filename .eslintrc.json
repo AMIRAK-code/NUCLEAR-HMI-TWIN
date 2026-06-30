@@ -1,0 +1,90 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "plugins": [
+    "security"
+  ],
+  "extends": [
+    "eslint:recommended"
+  ],
+  "globals": {
+    "THREE": "readonly",
+    "DAO": "readonly",
+    "S": "writable",
+    "COMPONENT_REGISTRY": "readonly",
+    "DESIGN_TOKENS": "readonly",
+    "RBACContext": "readonly",
+    "canAccess": "readonly",
+    "getVisibleComponents": "readonly",
+    "getComponent": "readonly",
+    "parseAccess": "readonly",
+    "renderRoleSummary": "readonly",
+    "ts": "readonly",
+    "mkEntry": "readonly",
+    "p2": "readonly",
+    "p3": "readonly",
+    "pct": "readonly",
+    "setText": "readonly",
+    "setAttr": "readonly",
+    "escHtml": "readonly",
+    "dlFile": "readonly",
+    "mkModel": "readonly",
+    "reduce": "readonly",
+    "dispatch": "readonly",
+    "scheduleRender": "readonly",
+    "render": "readonly",
+    "ScenarioEngine": "readonly",
+    "hideDemoBar": "readonly",
+    "setEmergencyOverlay": "readonly",
+    "showDemoBar": "readonly",
+    "addAIMessage": "readonly",
+    "initThreeJS": "readonly",
+    "showModal": "readonly",
+    "hideModal": "readonly",
+    "bindAll": "readonly",
+    "_rq": "writable",
+    "_onConfirm": "writable",
+    "bindGuardedButton": "readonly"
+  },
+  "rules": {
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "security/detect-object-injection": "warn",
+    "security/detect-non-literal-regexp": "warn",
+    "no-console": [
+      "warn",
+      {
+        "allow": [
+          "warn",
+          "error"
+        ]
+      }
+    ],
+    "eqeqeq": [
+      "error",
+      "always"
+    ],
+    "no-var": "error",
+    "prefer-const": "warn",
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "no-undef": "error",
+    "semi": [
+      "error",
+      "always"
+    ],
+    "no-duplicate-case": "error",
+    "default-case": "warn"
+  }
+}

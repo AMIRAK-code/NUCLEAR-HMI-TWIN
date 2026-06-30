@@ -1,0 +1,45 @@
+{
+  "name": "core-sentinel-hmi-workspace",
+  "version": "4.3.0",
+  "description": "ISA-101 compliant HMI for InRebus DAO LFR-4G Unit 4 - Lead-Cooled Fast Reactor",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "dev:mfe": "npm run build:remotes && concurrently -k -n TELEMETRY,3DTWIN,CONFIG,SHELL -c cyan,magenta,yellow,green \"npm run preview --workspace=packages/mfe-telemetry\" \"npm run preview --workspace=packages/mfe-3d-twin\" \"npm run preview --workspace=packages/mfe-config\" \"npm run dev --workspace=packages/shell\"",
+    "build:remotes": "concurrently \"npm run build --workspace=packages/mfe-telemetry\" \"npm run build --workspace=packages/mfe-3d-twin\" \"npm run build --workspace=packages/mfe-config\"",
+    "dev:shell": "npm run dev --workspace=packages/shell",
+    "dev:app": "vite",
+    "build:app": "vite build",
+    "preview:app": "vite preview",
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "lint": "eslint src/ constants/ utils.js packages/shared/src/ packages/shell/src/ packages/mfe-telemetry/src/ packages/mfe-3d-twin/src/ packages/mfe-config/src/"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "eslint": "^8.57.1",
+    "eslint-plugin-security": "^4.0.0",
+    "vite": "^8.0.8",
+    "vitest": "^1.6.1"
+  },
+  "keywords": [
+    "hmi",
+    "isa-101",
+    "nureg-0700",
+    "nuclear",
+    "lfr",
+    "lead-cooled-reactor",
+    "scada",
+    "safety-critical"
+  ],
+  "license": "PROPRIETARY",
+  "main": "src/component-registry.js",
+  "directories": {
+    "test": "tests"
+  },
+  "author": "",
+  "type": "module"
+}

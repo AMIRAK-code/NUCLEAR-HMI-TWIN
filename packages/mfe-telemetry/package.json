@@ -1,0 +1,19 @@
+{
+  "name": "@sentinel/mfe-telemetry",
+  "version": "4.3.0",
+  "description": "CORE-SENTINEL mfe-telemetry — safety-critical HUD, alarms, gauges (IEC 60964)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@sentinel/shared": "4.3.0"
+  },
+  "devDependencies": {
+    "@originjs/vite-plugin-federation": "^1.3.6",
+    "vite": "^8.0.8"
+  }
+}

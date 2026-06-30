@@ -1,0 +1,1572 @@
+﻿
+
+
+##################### TRANSCRIPT LINE 771 #####################
+
+Here are all 16 master prompts — copy-paste ready, each self-contained.
+
+---
+
+## ✅ CAN DO NOW — 11 Prompts
+
+---
+
+### PROMPT 1 — Predictive Trend Ghosting
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS (ES Modules), Tailwind CSS, MVI architecture
+Key files: src/views/render.js, src/model.js, src/reducer.js, index.html
+
+TASK: Add predictive trend projection ("ghosting") to the two main SVG charts.
+
+CONTEXT:
+- TelemetryBuffer already exists and stores 750 readings (10 min @ 800ms)
+  Import: import { TelemetryBuffer } from '../telemetry-buffer.js' (check exact path)
+- Two SVG charts exist in render.js: Core Temperature (ct-*) and Primary Pressure (cp-*)
+- Each chart has a trip line already: ct-trip-line, cp-trip-line
+- Chart SVG viewBox is 300×80px, data flows left-to-right
+
+WHAT TO BUILD:
+1. Create src/predictor.js — a pure module that:
+   - Takes the last N readings from TelemetryBuffer for a given sensor key
+   - Runs simple linear regression (least squares, 2 variables only)
+   - Returns { slope, intercept, projectedValues: number[], timeToTrip: number|null }
+   - timeToTrip = seconds until projected line crosses tripHigh or tripLow (null if safe)
+   - Clamp projection to 2 minutes ahead (150 points at 800ms)
+
+2. In render.js, after drawing the existing chart data line:
+   - Compute prediction for CORE_TEMP and PRIM_PRESS using Predictor
+   - Draw prediction as a <polyline> with stroke-dasharray="3,3" opacity="0.5"
+     color: same as normal line but 50% opacity, dashed
+   - The polyline starts at the last real data point and extends right
+   - Use a separate SVG <g id="ct-prediction"> element so it can be cleared each frame
+
+3. Add "Time to Trip" indicator below each chart:
+   - Element IDs: ct-time-to-trip, cp-time-to-trip
+   - Format: "⚠ TRIP IN 4:32" in red if timeToTrip < 300s
+   - Format: "✓ SAFE" in green if no trip predicted within 2 min
+   - Format: "—" if insufficient data (< 10 readings)
+
+4. Add a toggle button in the toolbar (near existing controls):
+   - ID: btn-toggle-prediction
+   - Label: "PREDICT" — toggles prediction overlay on/off
+   - State stored in S.ui.predictionEnabled (add to model.js initial state)
+
+CONSTRAINTS:
+- Do NOT use any external ML library — plain JS math only
+- Prediction runs client-side every render tick — keep it under 2ms
+- If TelemetryBuffer has fewer than 10 readings, skip prediction silently
+- Prediction lines must NEVER be confused with real data — always dashed + semi-transparent
+- Follow existing ISA-101 color palette and render.js patterns exactly
+```
+
+---
+
+### PROMPT 2 — Data Provenance Badges
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI, Tailwind CSS
+Key files: src/model.js, src/reducer.js, src/dao.js, src/views/render.js, index.html
+
+TASK: Add a data provenance badge to every sensor reading in the HMI.
+
+CONTEXT:
+- 16 sensors live in S.sensors (global state object), each has: v, u, tag, sys
+- HUD cards show 6 key sensors. Diagnostics table shows all 16.
+- Currently all data comes from SimulatedTransport (dao.js) — no real source field
+
+WHAT TO BUILD:
+1. In src/dao.js, add a `source` field to every sensor tick update:
+   - For now, always emit source: 'SIM'
+   - The field must exist so UI can render it — values will change when real transport arrives
+
+2. In src/model.js, add `source: 'SIM'` to every sensor's initial state object
+
+3. Create a pure helper function `provenanceBadge(source)` in utils.js:
+   Returns an HTML string for the badge:
+   - 'LIVE'    → <span class="badge-live">● LIVE</span>    (green, #159647)
+   - 'SIM'     → <span class="badge-sim">◈ SIM</span>     (gray, #6c757d)
+   - 'VIRTUAL' → <span class="badge-virt">◇ VIRT</span>   (blue, #0d6efd)
+   - 'STALE'   → <span class="badge-stale">○ STALE</span> (amber, #d97d06)
+   - default   → <span class="badge-sim">◈ UNK</span>
+   Each badge is: font-size 9px, letter-spacing 0.05em, uppercase, monospace font
+
+4. In render.js, add the badge:
+   - On each HUD card (6 cards): small badge bottom-right of the value
+   - In the diagnostics table: new "SRC" column after the value column
+
+5. Add CSS for badge classes to index.html <style> block:
+   .badge-live  { color:#159647; font-size:9px; font-family:monospace; }
+   .badge-sim   { color:#6c757d; font-size:9px; font-family:monospace; }
+   .badge-virt  { color:#0d6efd; font-size:9px; font-family:monospace; }
+   .badge-stale { color:#d97d06; font-size:9px; font-family:monospace; }
+
+CONSTRAINTS:
+- Do NOT change any alarm logic, config logic, or reducer logic
+- The source field is purely display — it does not affect alarming or config
+- Keep badge minimal — it must not dominate the card, secondary visual
+- Must work with existing dirty-check (_lastSig) in render-config.js and render.js
+  Add source values to the signature string if needed
+```
+
+---
+
+### PROMPT 3 — Training Mode + Scenario Player
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI architecture
+Key files: src/model.js, src/reducer.js, src/events.js, src/scenario-engine.js,
+           src/component-registry.js, src/views/render.js, index.html
+
+TASK: Add a Training Mode with a guided step-by-step scenario player (WP 3.6 deliverable).
+
+CONTEXT:
+- RBAC roles: OL (read), OD (read+update+scram), AS (full)
+- ScenarioEngine already exists in scenario-engine.js — it runs A/B/C demo scenarios
+- Components are registered in component-registry.js (CMP-01..CMP-24)
+- dispatch() in reducer.js handles all state changes
+- S.activePanel controls which main panel is shown
+
+WHAT TO BUILD:
+
+1. Add new RBAC role 'TR' (Trainee) to rbac-factory.js and component-registry.js:
+   - TR has same access as OL (read only) but can access Training panel
+   - Add TR to the role selector in events.js
+
+2. Add to model.js initial state:
+   S.training = {
+     active: false,
+     scenarioId: null,
+     currentStep: 0,
+     score: 0,
+     maxScore: 0,
+     startedAt: null,
+     completed: false,
+     history: []   // { step, action, passed, timestamp }
+   }
+
+3. Create src/training-scenarios.js — array of scenario definitions:
+   Each scenario: { id, title, difficulty, steps: [] }
+   Each step: {
+     id, instruction, targetComponentId, 
+     action: 'acknowledge_alarm'|'navigate_to'|'observe'|'config_change',
+     checkFn: (S) => boolean,  // pure function, returns true if step passed
+     timeout: 30,              // seconds to complete before auto-fail
+     hint: string
+   }
+   Build 3 scenarios:
+   - SCN-01: "Normal Operations Check" (5 steps, easy)
+   - SCN-02: "Primary Circuit Alarm Response" (8 steps, medium)  
+   - SCN-03: "SCRAM Procedure" (10 steps, hard)
+
+4. Create src/views/render-training.js (new file):
+   - renderTraining(s) function
+   - Panel has two modes:
+     A) SCENARIO LIST — cards for each scenario with title, difficulty, best score
+     B) ACTIVE SCENARIO — shows current step instruction, highlighted target component,
+        progress bar (step N of M), score, timer countdown, HINT button, ABORT button
+   - Overlay: when training.active === true, show a semi-transparent instruction panel
+     fixed at bottom of screen (above everything else, z-index 9999)
+     Shows: current step text, timer, target component highlighted with a pulsing gold border
+
+5. Add ACTION_TYPES in constants/actionTypes.js:
+   TRAINING_START, TRAINING_STEP_PASS, TRAINING_STEP_FAIL, TRAINING_COMPLETE, TRAINING_ABORT
+
+6. Add training reducer cases in reducer.js
+
+7. In events.js: 
+   - Add 'TR' to nav visibility
+   - Add nav-training button handler
+   - Add event delegation for training buttons
+
+8. In render.js: call renderTraining(s) when s.activePanel === 'training'
+
+9. Persist completed scenario scores to localStorage key 'dao-training-scores'
+
+CONSTRAINTS:
+- Training mode must NEVER interfere with alarm display — alarms always visible
+- checkFn must be a PURE function (no side effects), only reads S
+- If operator closes training mid-scenario, state resets cleanly
+- Follow exact ISA-101 color palette
+- Use gold color (#ffc107) for highlighted target component border in training overlay
+```
+
+---
+
+### PROMPT 4 — Touch & Gesture Support
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, Tailwind CSS, Three.js
+Key files: index.html, src/views/render.js, src/events.js
+
+TASK: Add full touch screen and gesture support for industrial touch panel deployment.
+
+CONTEXT:
+- HMI currently works mouse-only
+- WP 1.3 explicitly requires touch navigation and gesture support
+- Target hardware: industrial 27" touchscreen panels in control room
+- SVG P&ID diagram is in a div with id="pid-container" 
+- Three.js canvas is in a div with id="three-canvas" or similar
+- Main navigation panels switch via S.activePanel
+
+WHAT TO BUILD:
+
+1. Global touch CSS — add to index.html <style>:
+   - All interactive elements: touch-action: manipulation (prevents 300ms delay)
+   - All buttons/clickable elements: min-height: 44px; min-width: 44px (ISO 9241)
+   - Disable text selection on drag: user-select: none on chart/diagram containers
+   - -webkit-tap-highlight-color: transparent (remove iOS flash)
+
+2. Swipe navigation between main panels:
+   - Add touch handlers to the main content area (not nav, not modals)
+   - Swipe LEFT → next panel, Swipe RIGHT → previous panel
+   - Panel order: overview → primary → secondary → diagnostics → config → training
+   - Minimum swipe: 80px horizontal movement, < 30px vertical drift
+   - Visual feedback: brief directional arrow overlay (CSS animation, auto-hides 500ms)
+   - Implement in events.js with touchstart/touchend/touchmove listeners
+   - Only trigger if swipe started on the main content area, not on interactive elements
+
+3. Pinch-to-zoom on P&ID SVG:
+   - Detect two-finger pinch on the P&ID container
+   - Scale SVG viewBox (same mechanism as AAS graph viewer already in render-config.js)
+   - Min scale: 1.0 (no zoom out past original), Max scale: 4.0
+   - Double-tap to reset zoom
+   - Persist scale in S.ui.pidZoom (add to model.js)
+
+4. Pinch-to-zoom on Three.js 3D view:
+   - Three.js OrbitControls already supports touch — verify it is enabled
+   - If not enabled: set controls.enableTouch = true and controls.touches properly
+   - Two-finger rotate, two-finger pinch zoom, three-finger pan
+
+5. Long-press context menu on HUD sensor cards:
+   - Long press (500ms) on any HUD card → show a small context menu:
+     Options: "View Trend", "View in Diagnostics", "Acknowledge Alarm" (if in alarm)
+   - Implement as a positioned <div> that appears near the pressed card
+   - Dismiss on tap-outside or selecting an option
+
+6. Pull-to-refresh gesture on alarm panel:
+   - Swipe down > 60px on alarm list → visual refresh indicator → re-renders alarms
+   - Visual: spinner icon appears briefly at top of alarm list
+
+CONSTRAINTS:
+- Mouse events must STILL WORK — all touch additions are additive, never replacing
+- Do not add Hammer.js or any touch library — use native PointerEvents API throughout
+- Passive event listeners where possible (touchstart: {passive:true}) for scroll performance
+- Test that all existing click handlers fire normally on touch devices
+```
+
+---
+
+### PROMPT 5 — Report Builder
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI, Tailwind CSS
+Key files: src/model.js, src/reducer.js, src/events.js, src/views/render.js,
+           src/component-registry.js, index.html, utils.js
+
+TASK: Build a composable Report Builder panel (WP 1.3 requirement).
+
+CONTEXT:
+- WP 1.3 explicitly requires "composable reporting" by operators
+- All data is available in global state S (sensors, alarms, config version, logs)
+- ConfigService has exportSigned() for signed JSON export (already exists)
+- Reports use browser window.print() — no PDF library needed
+- RBAC: OL and above can view reports; OD and above can create custom reports
+
+WHAT TO BUILD:
+
+1. New panel 'reports' — add to S.activePanel options in model.js
+
+2. Create src/views/render-reports.js with renderReports(s) function
+
+3. Three pre-built report templates (always available):
+
+   TEMPLATE A — "Shift Handover Report":
+   Sections: Plant Status Summary | Active Alarms | Last 30min Sensor Trend (text table) 
+   | Current Config Version | Operator Activity Log (last 20 entries)
+
+   TEMPLATE B — "Incident Report":  
+   Sections: Incident Timestamp | Alarm Timeline | Sensor Values Table (current) 
+   | SCRAM Status | Operator Actions Taken | Config in Effect
+
+   TEMPLATE C — "Sensor Status Report":
+   Sections: All 16 sensors with current value / unit / status / trip setpoints 
+   | Unit mode (metric/imperial) | Last calibration (from ConfigService devices submodel)
+
+4. Custom report builder (OD+ only):
+   - Drag-and-drop widget selector (use CSS drag with data-widget attributes)
+   - Available widgets: [Sensor Value Card] [Alarm Table] [Trend Table] [Config Summary]
+                        [Operator Log] [Plant Schematic Text] [Timestamp Header]
+   - User can reorder, add, remove widgets
+   - Custom layout saved to localStorage key 'dao-custom-report-layout'
+
+5. Report rendering:
+   - "Preview" button: opens a new browser window with print-ready HTML
+   - "Print" button: calls window.print() on the preview window
+   - The printed output uses a CSS @media print stylesheet:
+     * White background, black text, no navigation elements
+     * newcleo + inRebus logos (text placeholders if no image)
+     * Page headers with: Report Type | Timestamp | Operator Name | Config Version
+     * Page footers with: CORE-SENTINEL HMI | DAO Project | Page N of M
+     * ISA-101 alarm colors preserved in print (use !important on color rules)
+
+6. Report signing:
+   - Each generated report HTML includes a SHA block at the bottom:
+     "Report ID: [FNV-64 of report content]  |  Generated by: [role]  |  [timestamp]"
+   - Use existing _fnv1a / _sign infrastructure from config-service.js
+
+7. Add nav-reports button to navigation bar (visible to all roles)
+
+CONSTRAINTS:
+- NO external PDF libraries — browser print only
+- Report data is a SNAPSHOT of S at the moment "Generate" is clicked — not live
+- Print CSS must produce clean output on A4 and Letter paper sizes
+- Follow exact ISA-101 color palette for any status indicators in reports
+```
+
+---
+
+### PROMPT 6 — Graceful Degradation / Offline Mode
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI architecture
+Key files: src/model.js, src/reducer.js, src/events.js, src/dao.js,
+           src/views/render.js, constants/actionTypes.js, index.html
+
+TASK: Add connection state machine and graceful degradation per IEC 60964.
+
+CONTEXT:
+- IEC 60964 requires: if analytics/network fails, core telemetry must NEVER be interrupted
+- Currently if dao.js stops updating, HMI silently freezes with stale values
+- startDataLoop() in events.js drives the 800ms tick
+- All sensor updates go through dispatch(ACTION_TYPES.TICK, payload)
+
+WHAT TO BUILD:
+
+1. Add connection state machine to model.js:
+   S.connection = {
+     state: 'SIMULATION',   // 'LIVE' | 'DEGRADED' | 'SIMULATION' | 'OFFLINE'
+     lastTickAt: null,       // timestamp of last received data
+     lostAt: null,           // timestamp when connection was lost
+     reconnectAttempts: 0
+   }
+   State transitions:
+   SIMULATION → LIVE (when real transport connects)
+   LIVE → DEGRADED (no data for 3 seconds)
+   DEGRADED → OFFLINE (no data for 10 seconds)
+   OFFLINE → LIVE (data resumes)
+   Any state → SIMULATION (manual "Use Simulation" button)
+
+2. Add ACTION_TYPES: CONNECTION_STATE_CHANGE, CONNECTION_HEARTBEAT
+
+3. In events.js startDataLoop():
+   - After every tick, dispatch CONNECTION_HEARTBEAT with timestamp
+   - Add a watchdog setInterval (every 1 second) that:
+     * Checks time since last heartbeat
+     * Dispatches CONNECTION_STATE_CHANGE when thresholds crossed
+
+4. In reducer.js: handle CONNECTION_HEARTBEAT and CONNECTION_STATE_CHANGE
+
+5. In render.js, add a persistent connection banner at the top of the HMI:
+   - LIVE:        [no banner — clean screen]
+   - SIMULATION:  subtle gray bar "◈ SIMULATION MODE" (not alarming, informational)
+   - DEGRADED:    amber bar "⚠ CONNECTION DEGRADED — DATA MAY BE DELAYED"
+   - OFFLINE:     red bar "✖ CONNECTION LOST — LAST DATA: [elapsed time ago] — VALUES ARE STALE"
+   
+   Banner element ID: connection-banner
+   Position: fixed top-0, full width, z-index 9998 (below training overlay, above everything else)
+
+6. When state is DEGRADED or OFFLINE:
+   - All sensor values remain visible (never blank or hide them)
+   - Add STALE badge (from Prompt 2 infrastructure) to all sensor cards
+   - Show elapsed time since last good data on each HUD card (small gray text)
+   - Alarm panel: gray out new alarms, show "⚠ ALARMS MAY BE UNRELIABLE" header
+
+7. "Use Simulation" button appears in OFFLINE state:
+   - Clicking it switches to SimulatedTransport (calls startDataLoop with simulated source)
+   - Shows "SIMULATION MODE" banner — makes it clear to operator this is not real data
+   - This is the IEC 60964 "graceful degradation to simulation" path
+
+8. Add to src/dao.js: a simulateConnectionLoss() export for testing:
+   - Stops emitting ticks for 15 seconds, then resumes
+   - Accessible via browser console for demo purposes
+
+CONSTRAINTS:
+- Alarms MUST remain visible in all connection states — never hidden or suppressed
+- STALE values must show their value + a timestamp, not hide the value
+- The watchdog timer must be independent of the main data loop tick
+- State machine transitions must be logged via dispatch(ACTION_TYPES.LOG, ...)
+```
+
+---
+
+### PROMPT 7 — Voice Commands
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI
+Key files: src/events.js, src/reducer.js, constants/actionTypes.js,
+           src/views/render.js, index.html
+
+TASK: Add voice command input using the native Web Speech API (no external dependencies).
+      This is the client-side implementation for the Nextage NLP contract (WP 3.6).
+
+CONTEXT:
+- Browser SpeechRecognition API is available in Chrome/Edge (webkit prefix needed)
+- All HMI actions go through dispatch() — voice commands just dispatch the same actions
+- Operators wear PPE and may have limited hand use — voice is a primary interaction method
+- Nextage will later deliver an NLP server; this implementation must have the same interface
+
+WHAT TO BUILD:
+
+1. Create src/voice-controller.js:
+   - Class VoiceController with methods: start(), stop(), isSupported()
+   - Uses window.SpeechRecognition || window.webkitSpeechRecognition
+   - Language: 'en-US', continuous: false, interimResults: false
+   - On result: emit CustomEvent 'dao:voice:command' with { transcript, confidence }
+   - On error: emit 'dao:voice:error' with error type
+   - isSupported() checks browser compatibility, returns bool
+
+2. Create src/voice-commands.js — command dictionary:
+   Array of { patterns: string[], action: (dispatch, S) => void, description: string }
+   
+   Implement these commands:
+   - "show overview" / "go to overview" / "main screen"
+     → dispatch navigate to panel 'overview'
+   - "show primary" / "primary circuit" / "primary loop"  
+     → navigate to 'primary'
+   - "show secondary" / "secondary circuit"
+     → navigate to 'secondary'
+   - "show diagnostics" / "show sensors" / "diagnostics"
+     → navigate to 'diagnostics'
+   - "show config" / "configuration" / "config manager"
+     → navigate to 'config' (if role permits)
+   - "show training" / "training mode"
+     → navigate to 'training'
+   - "acknowledge alarm" / "ack alarm" / "silence alarm"
+     → dispatch ACKNOWLEDGE_ALL_ALARMS (add this action)
+   - "show alarms" / "alarm list"
+     → scroll alarm panel into view / open alarm modal
+   - "metric units" / "use metric"
+     → UnitConverter.setMode('metric')
+   - "imperial units" / "use imperial" / "fahrenheit"
+     → UnitConverter.setMode('imperial')
+   - "who am i" / "current user" / "my role"
+     → TTS speaks current role name
+   - "help" / "what can you do" / "commands"
+     → TTS lists available commands
+   
+   Matching: normalize transcript (lowercase, trim), check if any pattern is a substring
+
+3. Text-to-speech feedback using window.speechSynthesis:
+   - speak(text) function — cancels any current speech, speaks new text
+   - Voice: en-US, rate: 1.0, pitch: 1.0, volume: 0.8
+   - Confirmation: "Navigating to primary circuit", "Alarm acknowledged", etc.
+   - Errors: "Command not recognized", "Insufficient permissions"
+
+4. UI elements in index.html and render.js:
+   - Mic button in the top toolbar: id="btn-voice"
+   - States: idle (mic icon, gray), listening (mic icon, red pulsing animation), processing
+   - Keyboard shortcut: Space bar while holding Ctrl → activates voice
+   - Visual transcript: small floating badge shows recognized text for 2 seconds after command
+
+5. In events.js:
+   - Instantiate VoiceController
+   - Listen for 'dao:voice:command' event → run command matching → dispatch
+   - Listen for 'dao:voice:error' → show brief error toast
+   - btn-voice click handler → toggle VoiceController.start()/stop()
+
+6. Graceful fallback:
+   - If SpeechRecognition not supported: hide btn-voice entirely
+   - Never crash if API is unavailable
+
+CONSTRAINTS:
+- All commands must also work via keyboard/mouse — voice is ADDITIVE not replacement
+- Voice commands must respect RBAC (check S.role before dispatching privileged actions)
+- No external NLP library — just string matching for now (Nextage server plugs in later)
+- SpeechRecognition must auto-stop after each command (not continuous mode) for privacy
+- Add a VOICE_COMMAND entry to ACTION_TYPES and log every voice command with transcript
+```
+
+---
+
+### PROMPT 8 — 3D Twin Functional Connections
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, Three.js
+Key files: src/views/render.js (find where Three.js scene is set up — search for 'THREE' or 'scene'),
+           src/dao.js (sensor definitions), index.html
+
+TASK: Connect live sensor data to the Three.js 3D reactor model so it responds to real plant state.
+
+CONTEXT:
+- A Three.js reactor visualization already exists — find the exact setup by reading render.js
+- 16 sensors in S.sensors with keys: CORE_TEMP, COOLANT_IN, COOLANT_OUT, PRIM_PRESS,
+  PUMP_A, PUMP_B, ROD_POS, SCRAM_V, LEAD_LEVEL, NEUTRON_FLUX, etc.
+- render(s) is called on every RAF — 3D updates should happen here
+- ISA-101 alarm colors: P1 #e31a1a, P2 #d97d06, P3 #cd5c08, Nominal #159647
+- SCRAM state: S.scramActive boolean
+
+WHAT TO BUILD (find existing mesh names first by reading the Three.js setup code):
+
+1. Core Temperature → Reactor vessel emissive color:
+   - Nominal (< nominalHigh): emissiveIntensity: 0.1, color: #ff4400 (dim orange glow)
+   - Warning: emissiveIntensity: 0.4, color: #ff6600
+   - Alarm P1: emissiveIntensity: 0.8, color: #ff0000 (bright red glow)
+   - Animate: use THREE.MathUtils.lerp() to smoothly transition between states each frame
+
+2. Control Rod Position → Physical mesh Y position:
+   - ROD_POS sensor value: 0–100%
+   - Map 100% = rods fully withdrawn (mesh at highest Y position)
+   - Map 0% = rods fully inserted (mesh at lowest Y position, emergency shutdown)
+   - Animate: lerp to target position at speed 0.05 per frame
+
+3. Pump A & B → Rotation animation:
+   - Find pump meshes in the scene
+   - Rotation speed: map RPM (0–3600) to rotation radians per frame (0 to 0.05)
+   - If pump RPM = 0: stop rotation, turn pump mesh gray
+   - If pump in alarm: add pulsing red point light near pump mesh
+
+4. SCRAM State → Dramatic scene change:
+   - When S.scramActive === true:
+     * All reactor core meshes switch to emissive red #e31a1a with intensity 0.9
+     * Control rods animate rapidly to Y_min (rods fully inserted)
+     * All pump rotations stop
+     * Add a red PointLight inside the core, intensity 2.0
+     * Add screen-space red vignette overlay in Three.js (post-processing OR CSS overlay div)
+   - When S.scramActive === false: smoothly return to normal state
+
+5. Lead Level → Liquid surface mesh height:
+   - LEAD_LEVEL sensor: 88–100% normal range
+   - Map to a visible liquid surface plane mesh (create if not exists)
+   - Material: MeshPhongMaterial, color #c0c0c0 (lead color), transparent: true, opacity: 0.6
+   - Height lerps to match level percentage
+
+6. Neutron Flux → Particle effect intensity:
+   - If a particle system exists for the core, connect its count/speed to NEUTRON_FLUX.v
+   - If no particle system: add a simple one (50 particles max, small white dots)
+   - High flux (> nominal): more particles, faster movement
+   - SCRAM (flux → 0): particles fade out over 2 seconds
+
+7. Add an "X-Ray Mode" toggle button (id="btn-xray"):
+   - Toggles reactor exterior shell mesh opacity between 1.0 and 0.15
+   - At opacity 0.15: interior components (rods, pumps, core) become visible
+   - Button state stored in S.ui.xrayMode (add to model.js)
+
+CONSTRAINTS:
+- All Three.js updates happen inside the existing render loop — no separate loops
+- Use lerp for ALL animated transitions — never hard-set values (jarring)
+- If a mesh is not found in the scene, skip that connection silently (don't crash)
+- Performance: all per-frame Three.js work must complete in < 5ms
+- Read the existing Three.js setup code thoroughly before making any changes
+```
+
+---
+
+### PROMPT 9 — ISA-18.2 Alarm Rationalization
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI
+Key files: src/model.js, src/reducer.js, constants/actionTypes.js,
+           src/views/render.js, src/events.js, index.html
+
+TASK: Implement ISA-18.2 compliant alarm management: shelving, flood detection, first-out latching.
+
+CONTEXT:
+- Alarms currently fire when sensor value crosses trip threshold and stay until cleared
+- S.alarms is an array of alarm objects (read model.js for exact structure)
+- Alarm priorities: P1 (critical), P2 (urgent), P3 (high)
+- SCRAM auto-fires when P1 alarm condition is met
+
+WHAT TO BUILD:
+
+1. ALARM SHELVING (ISA-18.2 §11):
+   Add to each alarm object: shelved: null | { reason: string, shelvedBy: string, expiresAt: number }
+   
+   Add ACTION_TYPES: ALARM_SHELF, ALARM_UNSHELVE
+   
+   ALARM_SHELF payload: { alarmId, reason, durationMinutes, operator }
+   - Shelved alarms: hidden from active alarm list, shown in separate "Shelved" tab
+   - Shelved alarm badge shows expiry countdown
+   - Auto-unshelve when expiresAt timestamp passes (check in tick loop)
+   - Shelving requires OD role minimum
+   - Max shelf duration: 480 minutes (8 hours, ISA-18.2 requirement)
+   
+   In alarm panel UI:
+   - Right-click (or long-press from touch prompt) on an alarm → shelf dialog
+   - Dialog: reason text input + duration selector (15min, 30min, 1h, 2h, 4h, 8h)
+   - Shelved tab shows count badge: "SHELVED (3)"
+
+2. ALARM FLOOD DETECTION (ISA-18.2 §14):
+   In model.js add: S.alarmFlood = { active: false, rate: 0, detectedAt: null }
+   
+   In the tick reducer: count alarms dispatched in the last 60 seconds
+   If rate > 10 alarms/minute for 2 consecutive minutes → S.alarmFlood.active = true
+   
+   When flood active:
+   - Show a prominent banner: "⚠ ALARM FLOOD DETECTED — SHOWING PRIORITY 1 ONLY"
+   - Hide all P2 and P3 alarms from the active list (they still exist, not deleted)
+   - Show "P2/P3 SUPPRESSED: N alarms hidden" counter
+   - P1 alarms always visible regardless
+   - Flood clears automatically when rate drops below 5/minute for 2 minutes
+   - Flood event logged with timestamp in operator log
+
+3. FIRST-OUT LATCHING (ISA-18.2 §10):
+   When multiple alarms fire within 500ms of each other (cascade):
+   - The FIRST alarm gets a "FIRST OUT" badge: ★ FIRST
+   - Subsequent alarms in the cascade get "CONSEQUENTIAL" badge
+   
+   Implementation: in reducer, when a new alarm fires, check if any alarm fired within 
+   the last 500ms. If yes, those are consequential. If no, this is a first-out.
+   
+   Add to alarm object: firstOut: boolean, consequential: boolean
+
+4. ALARM RATIONALIZATION REPORT:
+   New button in alarm panel header: "RATIONALIZATION REPORT"
+   Generates a text summary (for the Report Builder from Prompt 5):
+   - Total alarms in last 8h: N
+   - Most frequent: [sensor] (N times)
+   - Flood events: N
+   - Currently shelved: N
+   - Average acknowledge time: Xm Ys
+
+5. Visual updates in render.js alarm panel:
+   - Shelved alarms: show in "SHELVED" tab with reason and expiry countdown
+   - Flood mode: amber banner, P2/P3 hidden with count
+   - First-out alarms: ★ badge, bold border
+   - Consequential alarms: slightly muted appearance
+
+CONSTRAINTS:
+- Shelved alarms are NOT deleted — they exist in state, just filtered from main view
+- SCRAM logic must NOT be affected by shelving (SCRAM checks raw sensor values, not alarm state)
+- Flood detection must not hide P1 alarms under any circumstances
+- All alarm state changes must be logged via ACTION_TYPES.LOG
+- Follow existing alarm object structure exactly — extend it, don't replace it
+```
+
+---
+
+### PROMPT 10 — Cybersecurity Hardening
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI
+Key files: src/events.js, src/reducer.js, src/model.js, src/config-service.js,
+           constants/actionTypes.js, index.html
+
+TASK: Harden the HMI against IEC 62443 cybersecurity requirements (client-side implementable subset).
+
+CONTEXT:
+- Current auth: role selector in a modal, stored in S.role (localStorage)
+- ConfigService has FNV-64 signing infrastructure (_fnv1a, _sign, _verify)
+- All actions are dispatched through reducer.js which already has RBAC guards
+- Audit trail exists via ACTION_TYPES.LOG dispatches
+
+WHAT TO BUILD:
+
+1. FAILED LOGIN LOCKOUT:
+   Add to localStorage key 'dao-auth-attempts': { count: 0, lockedUntil: null, lastAttempt: null }
+   
+   In events.js login handler:
+   - Before processing login: check if lockedUntil > Date.now() → show lockout message with countdown
+   - On wrong credentials (wrong password for role, if password concept added): increment count
+   - After 5 failures: set lockedUntil = Date.now() + 15 * 60 * 1000 (15 min lockout)
+   - On successful login: reset count to 0
+   - Show lockout timer: "Account locked. Try again in 12:43"
+   
+   For now, simulate "credentials": each role has a simple PIN:
+   OL: "1111", OD: "2222", AS: "3333", TR: "4444"
+   (These are demo PINs — real auth comes from FOS backend later)
+   Add PIN input field to the existing login modal
+
+2. SESSION TIMEOUT ENFORCEMENT:
+   ConfigService already has session.timeout submodel — wire it up:
+   - Add to model.js: S.session = { loginAt: null, lastActivityAt: null, warningShown: false }
+   - In events.js: update S.session.lastActivityAt on any user interaction (mousemove, keydown, touch)
+   - Throttle updates to max once per 30 seconds
+   - Add a watchdog in startDataLoop() that checks inactivity:
+     * At (timeout - warnBefore): dispatch SESSION_WARNING → show countdown banner
+     * At timeout: dispatch SESSION_EXPIRE → auto-logout, clear S.role, show login modal
+   - Warning banner: "⚠ SESSION EXPIRES IN 2:30 — Click to extend"
+   - Click to extend: resets lastActivityAt
+
+3. SIGNED AUDIT LOG EXPORT:
+   Add "Export Audit Log" button to the Settings modal (AS role only):
+   - Collects all LOG entries from S (or from a dedicated audit array — add S.auditLog: [] to model)
+   - Each audit entry: { timestamp, action, operator, role, details }
+   - Generates JSON export with FNV-64 signature (use existing _sign from config-service.js)
+   - Format: { version: 1, exportedAt, exportedBy, signature, entries: [...] }
+   - Download via existing dlFile() utility from utils.js
+   - Verify function: can re-import and verify signature integrity
+
+4. SENSOR DATA VALIDATION (input sanitization):
+   In reducer.js TICK handler, before applying sensor updates:
+   Add a validateSensorPayload(payload) function:
+   - CORE_TEMP: must be between 0 and 1500 (°C) — physical bounds
+   - COOLANT_IN, COOLANT_OUT: must be between 273 and 2000 (K)
+   - PRIM_PRESS: must be between 0 and 1000 (PSI)
+   - PUMP_A, PUMP_B: must be between 0 and 10000 (RPM)
+   - ROD_POS: must be between 0 and 100 (%)
+   - SCRAM_V: must be between 0 and 300 (V)
+   - LEAD_LEVEL: must be between 0 and 100 (%)
+   If any value fails validation:
+   - Reject that sensor's update for this tick (keep last valid value)
+   - Dispatch LOG with: "SECURITY: Invalid sensor value rejected — [sensor]: [value]"
+   - Increment S.security.rejectedValues counter (add to model.js)
+
+5. SECURITY STATUS INDICATOR:
+   In the footer/status bar, add a small security indicator:
+   - 🟢 SECURE: no issues
+   - 🟡 WARN: session expiring, or rejected values > 0 in last 5 min
+   - 🔴 ALERT: lockout active, or rejected values > 10 in last 5 min
+   
+   Click on it → shows security summary modal with: session info, rejected values count,
+   last failed login attempt time, current config signature status
+
+CONSTRAINTS:
+- PINs are DEMO only — add a comment everywhere: "// TODO: Replace with FOS auth service"
+- Lockout state persists in localStorage so page refresh doesn't reset it
+- Validation rejects silently in normal operation — only logs, does not alarm the operator
+- Session timeout values come from ConfigService.get('session') — do not hardcode
+- All security events get ACTION_TYPES.LOG with a "SECURITY:" prefix for easy filtering
+```
+
+---
+
+### PROMPT 11 — Transport Abstraction Layer
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI
+Key files: src/dao.js, src/events.js, src/model.js
+
+TASK: Refactor dao.js into a pluggable transport architecture so FOS WebSocket/OPC UA
+      backend can be connected with a single environment variable change.
+
+CONTEXT:
+- dao.js currently simulates all 16 sensors with random walk + tick clamping
+- startDataLoop() in events.js calls DAO.tick() every 800ms
+- This is the ONLY change needed to connect real hardware — architecture must support it
+- FOS will deliver a WebSocket endpoint: ws://[host]/api/stream
+- The stream will emit JSON: { timestamp, sensors: { CORE_TEMP: { v, u, source }, ... } }
+
+WHAT TO BUILD:
+
+1. Create src/transports/base-transport.js:
+   Abstract interface (documented with JSDoc, not enforced):
+   class BaseTransport {
+     constructor(config) {}
+     async connect() {}          // establish connection
+     async disconnect() {}       // clean disconnect
+     onTick(callback) {}         // register callback: (sensorPayload) => void
+     get status() {}             // 'connecting'|'connected'|'degraded'|'disconnected'
+     get name() {}               // 'SIMULATED'|'WEBSOCKET'|'OPCUA'
+   }
+
+2. Move existing dao.js logic into src/transports/simulated-transport.js:
+   class SimulatedTransport extends BaseTransport
+   - Exact same behavior as current dao.js tick logic
+   - connect(): starts internal setInterval at 800ms
+   - disconnect(): clears interval
+   - onTick(cb): stores callback, calls it on each interval
+   - status: always 'connected'
+   - name: 'SIMULATED'
+
+3. Create src/transports/websocket-transport.js:
+   class WebSocketTransport extends BaseTransport
+   - constructor({ url, reconnectDelay = 3000, maxRetries = 10 })
+   - connect(): opens WebSocket, handles onopen/onmessage/onerror/onclose
+   - Auto-reconnect with exponential backoff on disconnect
+   - onmessage: parses JSON, validates structure, calls onTick callback
+   - disconnect(): closes WebSocket cleanly
+   - status: reflects actual WebSocket readyState
+   - name: 'WEBSOCKET'
+   - Body is COMPLETE but UNTESTED — marked with // TODO: FOS — test with real endpoint
+   - Add a MockWebSocketServer class at bottom of file (dev only):
+     Simulates a WebSocket by reading from SimulatedTransport and forwarding via BroadcastChannel
+     This lets the app run in WS mode without a real server: ?transport=mock-ws
+
+4. Create src/transports/index.js (the single switching point):
+   import SimulatedTransport from './simulated-transport.js'
+   import WebSocketTransport from './websocket-transport.js'
+   
+   const TRANSPORT_MODE = import.meta.env.VITE_TRANSPORT ?? 'simulated'
+   const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/stream'
+   
+   export const transport = 
+     TRANSPORT_MODE === 'websocket' ? new WebSocketTransport({ url: WS_URL }) :
+     TRANSPORT_MODE === 'mock-ws'   ? new WebSocketTransport({ url: 'mock', mock: true }) :
+     new SimulatedTransport()
+   
+   export default transport
+
+5. Update src/events.js:
+   - Import transport from './transports/index.js'
+   - Replace DAO.tick() call with transport.onTick() callback pattern
+   - On transport status change → dispatch CONNECTION_STATE_CHANGE (from Prompt 6)
+   - startDataLoop() now just calls transport.connect()
+
+6. Update src/dao.js:
+   - Keep DAO object for NOMINAL values, status(), and sensor metadata
+   - Remove tick() function (moved to SimulatedTransport)
+   - Add a comment block at top: "// Transport has been moved to src/transports/"
+
+7. Create .env.example in project root:
+   VITE_TRANSPORT=simulated       # simulated | websocket | mock-ws
+   VITE_WS_URL=ws://localhost:8080/stream
+   # When FOS delivers backend, change VITE_TRANSPORT=websocket and set VITE_WS_URL
+
+CONSTRAINTS:
+- Zero behavior change for the existing simulated mode — this is a pure refactor + addition
+- The WebSocketTransport must handle malformed JSON without crashing (try/catch on parse)
+- Do NOT break the existing SCRAM, alarm, or config logic — only the data source changes
+- Keep dao.js working for NOMINAL map, DAO.status(), DAO._s metadata (these are still used)
+- All transport classes use vanilla JS — no external WebSocket libraries
+```
+
+---
+
+## 🔵 BUILD STUBS NOW — 5 Prompts
+
+---
+
+### PROMPT B1 — Mock Authentication (FOS Backend Ready)
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI
+Key files: src/events.js, src/model.js, src/reducer.js, index.html
+
+TASK: Replace the current role-selector with a proper login screen that is
+      API-ready for FOS auth service. Works fully offline now with demo PINs.
+
+CONTEXT:
+- Current login: a modal with radio buttons to select OL/OD/AS role — no credentials
+- FOS will deliver: POST /api/auth/login → { token, role, name, expiresAt }
+- The entire RBAC system (rbac-factory.js, component-registry.js) uses S.role string
+  It must keep working identically after this change
+
+WHAT TO BUILD:
+
+1. Create src/auth-service.js:
+   class AuthService {
+     async login(username, password) {
+       // STUB: demo credentials
+       // TODO: Replace with: return await fetch('/api/auth/login', { method:'POST', body:... })
+       const DEMO_USERS = {
+         'operator':    { password: '1111', role: 'OL', name: 'Local Operator' },
+         'diagnostic':  { password: '2222', role: 'OD', name: 'Diag. Operator' },
+         'admin':       { password: '3333', role: 'AS', name: 'System Admin' },
+         'trainee':     { password: '4444', role: 'TR', name: 'Trainee' },
+       }
+       // Simulate 300ms network delay
+       await new Promise(r => setTimeout(r, 300))
+       const user = DEMO_USERS[username.toLowerCase()]
+       if (!user || user.password !== password)
+         throw new Error('Invalid credentials')
+       return { role: user.role, name: user.name, token: 'demo-' + Date.now(), expiresAt: Date.now() + 3600000 }
+     }
+     async logout() {
+       // TODO: POST /api/auth/logout with token
+       return true
+     }
+     async validateToken(token) {
+       // TODO: GET /api/auth/validate
+       return token.startsWith('demo-') // stub
+     }
+   }
+   export const Auth = new AuthService()
+
+2. Replace the login modal in index.html:
+   - Username input (text), Password input (password)
+   - "LOGIN" button, loading spinner state
+   - Error message area: "Invalid credentials", "Account locked (12:43 remaining)"
+   - Demo hint shown only in dev: "Demo: operator/1111, admin/3333"
+   - Remove the old role radio buttons
+
+3. Update events.js login handler:
+   - Call Auth.login(username, password)
+   - On success: dispatch with role from response, store operator name in S.operatorName
+   - On failure: show error, increment lockout counter (from Prompt 10)
+   - Show loading state during the async call
+
+4. Store operator name:
+   - Add S.operatorName: '' to model.js
+   - Display name in the top bar where role is shown: "John Smith (AS)"
+   - Include name in audit log entries and report headers
+
+5. Add S.authToken: null to model.js (will hold JWT when FOS delivers)
+
+CONSTRAINTS:
+- The entire RBAC system must work IDENTICALLY — only the login UI changes
+- Mark all stub code with: // STUB: Replace with FOS auth API
+- Username is case-insensitive
+- Password is case-sensitive
+- Login form must work with keyboard (Enter submits)
+```
+
+---
+
+### PROMPT B2 — OPC UA Data Contract Specification
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+
+TASK: Create the OPC UA data contract documentation and interface stub
+      that FOS/newcleo will implement on the Eclipse Milo backend server.
+
+WHAT TO BUILD:
+
+1. Create docs/opc-ua-contract.md — the specification FOS will implement against:
+
+   ## CORE-SENTINEL OPC UA Node Specification
+   Server: Eclipse Milo (OPC UA IEC 62541)
+   Namespace: ns=2 (application namespace)
+   
+   ### Sensor Nodes (16 total)
+   | Sensor Key  | OPC UA NodeId          | DataType | Unit | Update Rate |
+   |-------------|------------------------|----------|------|-------------|
+   | CORE_TEMP   | ns=2;s=T-CORE-01       | Float    | °C   | 800ms       |
+   | COOLANT_IN  | ns=2;s=T-CL-IN-01      | Float    | K    | 800ms       |
+   | COOLANT_OUT | ns=2;s=T-CL-OUT-01     | Float    | K    | 800ms       |
+   | PRIM_PRESS  | ns=2;s=P-PRI-01        | Float    | PSI  | 800ms       |
+   | PUMP_A      | ns=2;s=N-PMP-A-01      | Float    | RPM  | 400ms       |
+   | PUMP_B      | ns=2;s=N-PMP-B-01      | Float    | RPM  | 400ms       |
+   | NEUTRON_FLUX| ns=2;s=F-NEUT-01       | Double   | e14  | 1000ms      |
+   | FUEL_BURNUP | ns=2;s=B-FUEL-01       | Float    | GWd/t| 5000ms      |
+   | SG_INLET    | ns=2;s=T-SG-IN-01      | Float    | °C   | 800ms       |
+   | STEAM_PRESS | ns=2;s=P-STM-01        | Float    | bar  | 800ms       |
+   | TURBINE_RPM | ns=2;s=N-TRB-01        | Float    | RPM  | 400ms       |
+   | GRID_OUT    | ns=2;s=P-GRID-01       | Float    | MWe  | 1000ms      |
+   | ROD_POS     | ns=2;s=R-ROD-AVG       | Float    | %    | 200ms       |
+   | SCRAM_V     | ns=2;s=V-SCR-01        | Float    | V    | 100ms       |
+   | LEAD_LEVEL  | ns=2;s=L-PB-01         | Float    | %    | 500ms       |
+   | SEC_FLOW    | ns=2;s=F-SEC-01        | Float    | kg/s | 800ms       |
+   
+   ### WebSocket Proxy Format (for browser clients)
+   Since browsers cannot connect directly to OPC UA, FOS must provide a WebSocket proxy.
+   
+   Message format (server → client):
+   {
+     "t": 1714482600000,          // Unix timestamp ms
+     "seq": 12345,                // sequence number (for gap detection)
+     "sensors": {
+       "CORE_TEMP":   { "v": 485.3, "u": "°C", "src": "LIVE", "q": 192 },
+       "COOLANT_IN":  { "v": 673.1, "u": "K",  "src": "LIVE", "q": 192 },
+       ...
+     }
+   }
+   Field "q" = OPC UA quality code (192 = Good, 0 = Bad, 64 = Uncertain)
+   Field "src" = "LIVE" | "VIRTUAL" | "STALE"
+
+2. Create src/transports/opcua-transport.js (stub):
+   - Documents the interface
+   - Constructor takes { wsProxyUrl } (OPC UA is proxied through WebSocket for browser)
+   - Extends WebSocketTransport with OPC UA quality code handling:
+     * q < 64: mark sensor as STALE
+     * q === 0: reject value, keep last good
+   - All marked: // TODO: Test with Eclipse Milo proxy from FOS
+   - Otherwise identical to WebSocketTransport
+
+3. Create docs/websocket-api.md — the WebSocket API spec for FOS to implement:
+   - Connection: ws://[host]/api/stream?token=[jwt]
+   - Heartbeat: server sends {"type":"ping"} every 5s, client responds {"type":"pong"}
+   - Authentication: first message must be {"type":"auth","token":"[jwt]"}
+   - Error messages: {"type":"error","code":401,"message":"Unauthorized"}
+   - Reconnection: client will reconnect with exponential backoff
+
+CONSTRAINTS:
+- This is documentation + interface stub — no runtime behavior changes
+- Node IDs follow ISA-5.1 tag naming already established in the project
+- Quality codes follow OPC UA specification (Part 8, Table 7)
+```
+
+---
+
+### PROMPT B3 — AI Virtual Sensor UI (EVS Ready)
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI, Tailwind CSS
+Key files: src/model.js, src/reducer.js, src/views/render.js, src/dao.js, index.html
+
+TASK: Build the Virtual Sensor display infrastructure for the EVS (Edge Virtual Sensing)
+      system that LINKS/Politecnico will deliver. Populate with simple regression stubs now.
+
+CONTEXT:
+- WP 1.4 (newcleo) and WP 3.4 (LINKS): deliver EVS virtual sensors via ML models
+- EVS concept: fewer physical sensors + physics-informed ML = computed values for inaccessible points
+- The HMI needs to display virtual sensors alongside physical ones
+- Virtual sensors are marked differently (VIRTUAL provenance badge from Prompt 2)
+- Simple linear regression from Prompt 1's Predictor can be reused here as stub
+
+WHAT TO BUILD:
+
+1. Create src/virtual-sensors.js:
+   - Defines virtual sensor configuration array:
+   const VIRTUAL_SENSORS = [
+     {
+       id: 'V-CORE-BOTTOM',
+       tag: 'V-T-CORE-BOT-01',
+       label: 'Core Bottom Temp (Virtual)',
+       unit: '°C',
+       sys: 'Primary',
+       description: 'EVS estimate from T-CORE-01 and coolant flow model',
+       inputs: ['CORE_TEMP', 'COOLANT_IN', 'SEC_FLOW'],
+       // STUB: Replace with LINKS LSTM model output
+       computeFn: (sensors) => {
+         const t = sensors.CORE_TEMP?.v ?? 0
+         const flow = sensors.SEC_FLOW?.v ?? 3000
+         // Simple physics stub: bottom is hotter, less so with higher flow
+         return t * (1 + 0.05 * (1 - flow/4000))
+       }
+     },
+     {
+       id: 'V-VESSEL-STRESS',
+       tag: 'V-S-VESSEL-01',
+       label: 'Vessel Wall Stress (Virtual)',
+       unit: 'MPa',
+       sys: 'Safety',
+       description: 'EVS estimate from thermal + pressure sensors',
+       inputs: ['CORE_TEMP', 'PRIM_PRESS'],
+       computeFn: (sensors) => {
+         // Stub: simplified thermoelastic stress approximation
+         const dT = (sensors.CORE_TEMP?.v ?? 450) - 25
+         const p = sensors.PRIM_PRESS?.v ?? 160
+         return (dT * 0.18 + p * 0.3).toFixed(1)
+       }
+     },
+     {
+       id: 'V-LEAD-VELOCITY',
+       tag: 'V-F-PB-01',
+       label: 'Lead Flow Velocity (Virtual)',
+       unit: 'm/s',
+       sys: 'Primary',
+       description: 'EVS estimate from pump RPM and lead level',
+       inputs: ['PUMP_A', 'PUMP_B', 'LEAD_LEVEL'],
+       computeFn: (sensors) => {
+         const rpmA = sensors.PUMP_A?.v ?? 0
+         const rpmB = sensors.PUMP_B?.v ?? 0
+         return ((rpmA + rpmB) / 7200 * 2.5).toFixed(3)
+       }
+     }
+   ]
+   
+   export function computeVirtualSensors(sensors) {
+     return VIRTUAL_SENSORS.map(vs => ({
+       ...vs,
+       v: parseFloat(vs.computeFn(sensors)),
+       source: 'VIRTUAL',  // STUB: will be 'LIVE' when LINKS model delivers
+       confidence: 0.85,   // STUB: LINKS model will provide real confidence
+       modelVersion: 'STUB-v0.1'  // LINKS will provide: 'EVS-LSTM-v2.3'
+     }))
+   }
+
+2. In model.js: add S.virtualSensors: {} (keyed by sensor id)
+
+3. In reducer.js TICK case: 
+   - After updating physical sensors, compute virtual sensors
+   - import { computeVirtualSensors } from '../virtual-sensors.js'
+   - Update S.virtualSensors with computed values
+
+4. In render.js diagnostics table:
+   - Add a "VIRTUAL SENSORS" section below the 16 physical sensors
+   - Collapsible (default: expanded for OD/AS, collapsed for OL)
+   - Each virtual sensor row shows: tag | value+unit | VIRTUAL badge | confidence % | model version
+   - Confidence shown as a small bar: [████░░] 85%
+   - Rows have slightly different background (#f8f9fa) to distinguish from physical
+
+5. In the HUD overlay: add a small "EVS" panel showing just the 3 virtual sensor values
+   - Position: below the 6 HUD cards, above the chart section
+   - Compact single-line format: "V-T-CORE-BOT: 512.4°C [VIRTUAL 85%]"
+
+6. Create docs/evs-integration.md:
+   - Documents how LINKS delivers their model: expected function signature
+   - Shows where computeFn gets replaced with real model call
+   - Marks all stub code locations
+
+CONSTRAINTS:
+- Mark ALL computeFn stubs with: // STUB: Replace with LINKS EVS model — see docs/evs-integration.md
+- Virtual sensors must NEVER trigger SCRAM or alarms (safety-critical paths only use physical sensors)
+- If computeFn throws, catch it and return null — virtual sensor shows '--' not error
+- Confidence field is informational only — no alarm logic on it
+```
+
+---
+
+### PROMPT B4 — Blockchain Certification UI (Smart Track Ready)
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite + Vanilla JS ES Modules, MVI
+Key files: src/config-service.js, src/views/render.js, src/views/render-config.js, index.html
+
+TASK: Build the sensor data certification UI infrastructure for Smart Track's
+      blockchain certification API. Use FNV-64 as local stub until Smart Track delivers.
+
+CONTEXT:
+- Smart Track (FOS partner) is developing blockchain-based sensor data certification (WP 1.5)
+- They will deliver: POST /api/certify with sensor batch → returns { txHash, timestamp, certified: bool }
+- Our FNV-64 signing in config-service.js is the local proxy
+- Certification is about proving sensor readings have not been tampered with
+
+WHAT TO BUILD:
+
+1. Create src/certification-service.js:
+   class CertificationService {
+     // STUB: Replace with Smart Track API call
+     // Smart Track API: POST /api/certify { sensorKey, value, timestamp, operatorId }
+     // Returns: { txHash: string, certified: bool, blockNumber: number }
+     
+     async certifyReading(sensorKey, value, timestamp) {
+       // Local FNV-64 stub
+       const payload = JSON.stringify({ sensorKey, value, timestamp })
+       const hash = this._fnv1a(payload)
+       // Simulate 200ms blockchain confirmation
+       await new Promise(r => setTimeout(r, 200))
+       return {
+         txHash: 'LOCAL-' + hash,   // Smart Track returns: '0x...' Ethereum/L2 hash
+         certified: true,
+         blockNumber: null,          // Smart Track returns: actual block number
+         source: 'LOCAL_STUB'       // Smart Track returns: 'BLOCKCHAIN'
+       }
+     }
+     
+     async verifyCertification(txHash) {
+       // STUB: Smart Track returns actual blockchain verification
+       return txHash.startsWith('LOCAL-')
+     }
+     
+     _fnv1a(str) { /* copy from config-service.js */ }
+   }
+   export const Certification = new CertificationService()
+
+2. Add certification state to model.js:
+   S.certification = {
+     enabled: false,   // toggle — off by default until Smart Track integrates
+     lastCertifiedAt: null,
+     pendingCount: 0,
+     certifiedCount: 0,
+     failedCount: 0
+   }
+
+3. In render.js diagnostics table:
+   - Add a "CERT" column with a checkmark badge
+   - ✓ (green) — certified via Smart Track/local hash
+   - ⏳ (gray) — pending certification
+   - ✗ (red) — certification failed
+   - Click on badge → show modal with txHash and timestamp
+
+4. In ConfigService.exportSigned() — enhance existing signature:
+   - Current: single FNV-64 hash
+   - Enhanced: add a certifications block in export:
+     { ...existingExport, certifications: { txHash, timestamp, source: 'LOCAL_STUB' } }
+   - When Smart Track delivers: source becomes 'BLOCKCHAIN', txHash is real
+
+5. Add "Certification" section to Config Manager Overview tab:
+   - Toggle: Enable/Disable certification (AS role only)
+   - Status: Certified readings: N | Pending: N | Failed: N
+   - Last certification: [timestamp]
+   - Button: "View Certification Log" — shows last 20 certified entries
+   - Note: "⚠ LOCAL STUB — Smart Track blockchain integration pending" (shown until real API)
+
+6. Create docs/smart-track-integration.md:
+   - API endpoint spec for Smart Track to implement against
+   - Shows exactly where stub code is and what to replace it with
+
+CONSTRAINTS:
+- Certification failures must NEVER affect sensor display or alarms — purely informational
+- Mark all stub code: // STUB: Replace with Smart Track blockchain API
+- The certification toggle must default to FALSE — opt-in, not opt-out
+- Performance: certification is async and non-blocking — never delays render
+```
+
+---
+
+### PROMPT B5 — MFE Architecture Foundation
+
+```
+Project: CORE-SENTINEL HMI — C:\Users\faraz\Desktop\hmi
+Stack: Vite 6 + Vanilla JS ES Modules
+Key files: vite.config.js (or vite.config.ts), package.json, index.html,
+           src/views/render.js, src/model.js
+
+TASK: Lay the architectural foundation for Micro-Frontend (MFE) migration without
+      breaking the current monolith. Prepare module boundaries and the shell contract.
+
+CONTEXT:
+- Research 1.0 (D1.2.5) explicitly mandates MFE architecture
+- IEC 60964: a crash in 3D/analytics must never affect telemetry display
+- Current: one Vite bundle, everything in one JS file
+- Goal: define clear module boundaries NOW so future MFEs can be extracted one-by-one
+- This is a NON-BREAKING refactor — zero visible changes to the HMI
+
+WHAT TO BUILD:
+
+1. Create src/mfe-contracts.js — defines the interface each MFE module must implement:
+   /**
+    * MFE Module Contract
+    * Each future micro-frontend must export an object matching this shape
+    */
+   export const MFE_CONTRACT = {
+     mount: (container, sharedState$) => {},  // render into container element
+     unmount: (container) => {},               // clean up event listeners, timers
+     onStateChange: (newState) => {},          // called when shared state updates
+     name: '',                                 // module identifier
+     criticalityLevel: 'HIGH'|'MEDIUM'|'LOW'  // HIGH = never crash the shell
+   }
+   
+   // Current modules and their future MFE identity:
+   export const MFE_REGISTRY = {
+     'mfe-telemetry':  { criticality: 'HIGH',   panels: ['overview','primary','secondary'] },
+     'mfe-alarms':     { criticality: 'HIGH',   panels: ['alarms'] },
+     'mfe-3d-twin':    { criticality: 'MEDIUM', panels: ['3d'] },
+     'mfe-diagnostics':{ criticality: 'MEDIUM', panels: ['diagnostics'] },
+     'mfe-config':     { criticality: 'LOW',    panels: ['config'] },
+     'mfe-training':   { criticality: 'LOW',    panels: ['training'] },
+     'mfe-reports':    { criticality: 'LOW',    panels: ['reports'] },
+   }
+
+2. Add error boundary wrapper in src/views/render.js:
+   Wrap each panel render call in a try-catch:
+   function renderPanel(s) {
+     try {
+       switch(s.activePanel) {
+         case 'overview':   return renderOverview(s)
+         case 'config':     return renderConfig(s)
+         // etc.
+       }
+     } catch (err) {
+       console.error(`[MFE] Panel render error in ${s.activePanel}:`, err)
+       // Show graceful error state for that panel only
+       const container = document.getElementById('panel-content')
+       if (container) container.innerHTML = `
+         <div class="p-8 text-center">
+           <p class="text-red-600 font-bold">Panel Error</p>
+           <p class="text-sm text-gray-500">${err.message}</p>
+           <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-200 rounded">
+             Reload Panel
+           </button>
+         </div>`
+       // CRITICAL: alarms and HUD must still render — they are outside panel-content
+     }
+   }
+
+3. Update vite.config.js to enable code splitting by panel:
+   - Add manualChunks configuration to split render-config.js and future heavy panels
+   - This reduces initial bundle size and prepares for MFE extraction
+   - Keep telemetry/alarms/HUD in the main chunk (critical path)
+   
+   manualChunks: {
+     'config-panel':   ['src/views/render-config.js', 'src/config-service.js'],
+     'training-panel': ['src/training-scenarios.js'],
+     '3d-engine':      ['three'],  // Three.js into its own chunk
+   }
+
+4. Create src/shared-state.js — the state sharing contract for future MFEs:
+   // Current: MFEs will subscribe to state via CustomEvent
+   // Future: Replace with module federation shared state or BroadcastChannel
+   export function publishState(state) {
+     document.dispatchEvent(new CustomEvent('dao:state:update', { 
+       detail: state, 
+       bubbles: false 
+     }))
+   }
+   export function subscribeState(callback) {
+     document.addEventListener('dao:state:update', (e) => callback(e.detail))
+   }
+   // Call publishState(S) at the end of each render() call
+
+5. Create docs/mfe-migration-guide.md:
+   - Step-by-step guide for extracting each panel into an MFE
+   - Shows how to use Vite Module Federation when ready
+   - Explains the criticality levels and why HIGH panels must never depend on LOW panels
+   - Estimated effort for each MFE extraction
+
+CONSTRAINTS:
+- ZERO visible behavior changes — this is purely structural
+- Error boundaries must NOT catch alarm/HUD renders — those must always run
+- The chunk splitting must not break any existing imports or hot reload
+- All new files are additive — nothing deleted or renamed
+```
+
+---
+
+These 16 prompts are fully self-contained. Each references the exact files, respects the existing architecture, and leaves clean integration points for FOS. Start with **Prompt 1 + 2 + 11** together — they take 4 days and transform the HMI into something demonstrably production-grade.
+
+
+##################### TRANSCRIPT LINE 814 #####################
+
+# Status Report — What's Already Applied
+
+I scanned the codebase. Here's exactly where you stand:
+
+## ✅ APPLIED (6 of 16)
+
+| # | Feature | Evidence |
+|---|---------|----------|
+| **1** | Predictive Trend Ghosting | `src/predictor.js` exists |
+| **2** | Data Provenance Badges | `source:'SIM'` field added to all 16 sensors in `dao.js` |
+| **3** | Training Mode | `src/training-scenarios.js` + `src/views/render-training.js` |
+| **4** | Touch & Gesture (partial — swipe done, pinch not yet) | Swipe handlers + `_swipeHint()` in `events.js` |
+| **8** | 3D Twin Functional Connections | `src/three-twin.js` exists, wired to sensors |
+| **B5** | MFE Architecture | Full npm workspace: `packages/shared`, `packages/shell`, `packages/mfe-telemetry`, `packages/mfe-3d-twin`, `packages/mfe-config` + vitest + ESLint |
+
+## ❌ NOT APPLIED (10 remaining)
+
+| # | Feature | Missing artifact |
+|---|---------|------------------|
+| **5** | Report Builder | No `render-reports.js` |
+| **6** | Graceful Degradation | No `S.connection` state machine |
+| **7** | Voice Commands | No `voice-controller.js` |
+| **9** | ISA-18.2 Alarm Rationalization | No `S.alarmFlood`, no shelving |
+| **10** | Cybersecurity Hardening | No login lockout, no signed audit export |
+| **11** | Transport Abstraction Layer | No `src/transports/` folder |
+| **B1** | Mock Auth Service | No `auth-service.js` |
+| **B2** | OPC UA Contract Spec | No `docs/` folder |
+| **B3** | AI Virtual Sensors (EVS) | No `virtual-sensors.js` |
+| **B4** | Blockchain Certification | No `certification-service.js` |
+
+**Suggested next 3:** Prompt 11 (Transport) → Prompt 6 (Graceful Degradation) → Prompt B1 (Auth). Those three together turn this from a demo into something FOS can actually plug a backend into.
+
+---
+
+# Why We Are Doing All This — Coworker Briefing
+
+Here's a short, plain-language explanation you can give your team. No jargon-dumping — just the actual reasons.
+
+---
+
+## The One-Liner
+
+> *We are not building a dashboard. We are building a nuclear control room HMI that has to last 25 years and pass certification audits. Every feature on the list is either a contractual requirement, a safety standard, or future-proofing for the backend FOS hasn't delivered yet.*
+
+---
+
+## The Four Reasons Behind Everything
+
+### 1️⃣ **Contractual Deliverables to newcleo**
+
+The DAO project has signed Work Packages with newcleo. Each feature maps to one:
+
+| Feature | Maps to |
+|---------|---------|
+| Training Mode | **WP 3.6** (Upskilling) — newcleo's contracted operator-training module |
+| Report Builder | **WP 1.3** (Composable Reporting) — explicit deliverable in the spec |
+| Voice Commands | **WP 3.6** (Nextage NLP contract — €60K) — client-side companion |
+| AI Virtual Sensors | **WP 1.4 + WP 3.4** (LINKS/Politecnico EVS) — UI for their ML models |
+| Blockchain Certification | **WP 1.5** (Smart Track) — UI for their data-integrity chain |
+| MFE Architecture | **D1.2.5** Research recommendation (already approved) |
+
+If we don't build these, **we are in breach of contract.** Simple.
+
+---
+
+### 2️⃣ **Compliance & Certification Standards**
+
+A nuclear HMI cannot ship without passing these — they are not optional:
+
+| Feature | Standard it satisfies |
+|---------|----------------------|
+| Data Provenance Badges | **IEC 60964** — operator must always know if data is live, simulated, or stale |
+| Graceful Degradation | **IEC 60964** — telemetry must never disappear when analytics fails |
+| ISA-18.2 Alarm Rationalization | **ISA-18.2** — alarm shelving + flood suppression are mandatory in audits |
+| Cybersecurity Hardening | **IEC 62443** — failed-login lockout, signed audit trail, input validation |
+| Touch/Gesture | **ISO 9241** — 44×44px touch targets, gesture support for control room panels |
+| Transport Abstraction | **OPC UA IEC 62541** — proves the architecture supports the standard protocol |
+
+These are the boxes that get checked when newcleo's safety auditor walks in. Without them, the HMI cannot be deployed.
+
+---
+
+### 3️⃣ **The "Lasts Until 2050" Mandate**
+
+The client said it must survive 25 years. That means architectural decisions, not features:
+
+- **MFE Architecture** → so individual screens can be replaced without rewriting the whole HMI in 2035
+- **Transport Abstraction** → so when OPC UA evolves or gets replaced, only one file changes
+- **Mock Auth Service** → so when FOS delivers real JWT auth, only one file changes
+- **Virtual Sensor Stubs** → so when LINKS delivers real ML models, only one function changes
+
+This is **defensive engineering.** It's why a 2026 HMI can still work in 2050.
+
+---
+
+### 4️⃣ **FOS Hasn't Delivered the Backend Yet**
+
+This is the trickiest one to explain — but the simplest in concept:
+
+> **We can't wait for FOS. We build the front-half of every backend feature now, with a stub behind it. When FOS delivers, it's one line of code to swap the stub for the real thing.**
+
+The stubs are not "fake features." They are **functional placeholders** that:
+- Let us demo every feature to newcleo *today*
+- Let us pass code review *today*
+- Take 2 minutes to convert to real backend calls when FOS is ready
+
+Without this approach, we would either (a) ship a half-empty HMI now, or (b) wait 6 months for FOS and miss the deadline. Neither is acceptable.
+
+---
+
+## The Three Sentences for Your Boss
+
+> **We are building a nuclear-grade HMI to seven international safety standards, six work-package contracts, and a 25-year operational lifespan — without a working backend yet. Every feature on the roadmap is either compliance-mandatory, contractually owed to newcleo, or a stub that makes future backend integration a one-line change. Skipping any of them either fails the audit, breaches the contract, or paints us into a corner we cannot escape in 2030.**
+
+---
+
+That's the case. Want me to apply the next prompt (Transport Abstraction is the highest-leverage next move) or write a more formal version of this briefing for an email or slide deck?
+
+
+##################### TRANSCRIPT LINE 819 #####################
+
+# CORE-SENTINEL HMI — Roadmap Briefing for the Team
+
+Here is every update, explained in plain technical English. One paragraph each.
+
+---
+
+## ✅ ALREADY DONE (so the team knows where we are)
+
+### 1. Predictive Trend Ghosting *(applied)*
+**What it does:** Draws a dashed projection line on the temperature and pressure charts showing where the value is heading in the next 2 minutes, plus a "TRIP IN 4:32" countdown.
+**Why:** Operators currently see only the present. By projecting forward using the last 30 readings (linear regression), we give them lead time to act *before* an alarm fires. This is the difference between "responding to a problem" and "preventing one."
+**One sentence:** *We added math that predicts where the reactor is heading so operators can act before alarms fire.*
+
+---
+
+### 2. Data Provenance Badges *(applied)*
+**What it does:** Every sensor value on screen now has a small badge: LIVE / SIM / VIRTUAL / STALE.
+**Why:** In a real plant, the operator must *never* mistake simulated data for real data, or stale data for fresh data. This is an IEC 60964 hard requirement — wrong assumptions about data source have caused real nuclear incidents (e.g., Three Mile Island).
+**One sentence:** *Every number on screen now says where it came from, so operators never confuse real with simulated.*
+
+---
+
+### 3. Training Mode + Scenario Player *(applied)*
+**What it does:** A new "Trainee" role with three guided scenarios (Normal Ops, Alarm Response, SCRAM Procedure). The trainee gets step-by-step instructions overlaid on the live HMI with pass/fail scoring.
+**Why:** WP 3.6 (Upskilling) is a paid deliverable to newcleo. Operators must be certified before touching the plant — this is the certification tool.
+**One sentence:** *Operators-in-training now have a built-in coach that walks them through procedures step by step.*
+
+---
+
+### 4. Touch & Gesture (Swipe) *(applied, pinch pending)*
+**What it does:** Operators can swipe left/right between main panels instead of clicking nav buttons.
+**Why:** The HMI deploys on 27" industrial touchscreens, often operated by people wearing gloves. Mouse-only design fails ISO 9241 and frustrates real operators.
+**One sentence:** *The HMI now works the way a touch panel actually gets used — with fingers.*
+
+---
+
+### 5. 3D Twin Functional Connections *(applied)*
+**What it does:** The 3D reactor model is no longer decoration. Control rods physically move when ROD_POS changes. Pumps spin at the correct RPM. The core glows red during SCRAM. Lead level rises and falls in the vessel.
+**Why:** A 3D twin that does nothing is marketing. A 3D twin that *reflects reality* is a diagnostic tool — operators can spot a stuck rod or stopped pump at a glance, without parsing numbers.
+**One sentence:** *The 3D reactor model now physically responds to live sensor data — it's a diagnostic instrument, not a screensaver.*
+
+---
+
+### 6. MFE Architecture Migration *(applied)*
+**What it does:** The codebase was split into 5 separate npm packages: `shared`, `shell`, `mfe-telemetry`, `mfe-3d-twin`, `mfe-config`. Each can be built, tested, and deployed independently.
+**Why:** A single-bundle monolith means one bug crashes the whole HMI. With micro-frontends, if the 3D engine crashes, telemetry and alarms keep running. This is the IEC 60964 "graceful degradation" principle baked into the architecture itself. Also: 25-year maintenance becomes possible — we can rewrite one module without touching the others.
+**One sentence:** *We broke the codebase into independent modules so a crash in one screen can never take down the whole control room.*
+
+---
+
+## ❌ TO DO — IN PRIORITY ORDER
+
+---
+
+### 7. Transport Abstraction Layer 🔥 *(highest leverage)*
+**What it does:** Refactors the data source (`dao.js`) into a pluggable interface. Today it uses `SimulatedTransport` (random walk). When FOS delivers the WebSocket backend, we swap one line and the whole HMI works on real plant data — zero rewrites.
+**Why:** Without this, connecting to FOS's backend will be a 2-week migration project. With this, it's an environment variable change. **This is the single most important architectural prep we can do while FOS finishes their work.**
+**One sentence:** *We separate "how data arrives" from "how data is shown," so plugging in the real backend is one config change instead of a rewrite.*
+
+---
+
+### 8. Graceful Degradation / Offline Mode
+**What it does:** Adds a connection state machine (LIVE → DEGRADED → OFFLINE → SIMULATION) with a banner at the top of the screen. When data stops flowing, sensors don't blank out — they grey-out with a timestamp showing how old the data is. An "Use Simulation" button lets the operator fall back to simulated data.
+**Why:** IEC 60964 mandates that loss of network never blanks the operator's screen. A frozen HMI is more dangerous than an honest "connection lost" message because the operator might act on stale numbers thinking they're current.
+**One sentence:** *When the network drops, the screen never lies — it tells the operator exactly how stale the data is and offers a fallback.*
+
+---
+
+### 9. Mock Authentication Service (FOS-ready)
+**What it does:** Replaces the current "select your role" radio button with a real login screen (username + PIN). Today it validates against a small demo user table; when FOS delivers the auth API, only one function changes.
+**Why:** "Click your role" is unacceptable in a nuclear control room — there's no accountability. Real login gives us audit trails ("who acknowledged this alarm at 03:42?") and prepares the codebase for the JWT-based auth FOS will deliver.
+**One sentence:** *Selecting your role becomes logging in, with an audit trail of who did what.*
+
+---
+
+### 10. ISA-18.2 Alarm Rationalization
+**What it does:** Three additions to the alarm system: **(a) Shelving** — operators can temporarily suppress an alarm with a written reason and expiry time (e.g., "sensor under calibration, shelve for 4 hours"); **(b) Flood Detection** — if 10+ alarms fire per minute, the system suppresses P2/P3 and shows only P1 with a banner "ALARM FLOOD — N hidden"; **(c) First-Out Latching** — when alarms cascade, the trigger alarm gets a star badge so operators know which one started the chain.
+**Why:** During real incidents (Fukushima, TMI), operators were flooded with 100+ alarms and couldn't identify the root cause. ISA-18.2 was written specifically to solve this. Any nuclear HMI without these will fail the safety audit.
+**One sentence:** *Alarms become manageable during a crisis — operators can shelve nuisance ones, the system hides noise during floods, and the original alarm is always highlighted.*
+
+---
+
+### 11. Cybersecurity Hardening (IEC 62443)
+**What it does:** Four additions: failed-login lockout (5 wrong PINs = 15 min lockout), session timeout with warning banner, signed audit log export (with FNV-64 tamper detection), and sensor value validation (rejects physically impossible values like core temp = -50°C).
+**Why:** IEC 62443 is the cybersecurity standard for industrial control systems. Without these, the HMI is a vulnerability — a malicious actor could brute-force a role, an idle session is an open door, and a corrupted sensor reading could trigger a false SCRAM.
+**One sentence:** *We close the security holes that turn an HMI into an attack surface — lockouts, timeouts, signed logs, and input validation.*
+
+---
+
+### 12. Report Builder *(WP 1.3 deliverable)*
+**What it does:** A new panel where operators pick widgets (alarm table, sensor snapshot, trend summary, operator log) and generate print-ready reports. Three templates pre-built: Shift Handover, Incident Report, Sensor Status. Uses the browser's native print engine — no PDF library, no server.
+**Why:** Shift handovers in real plants happen via paper reports. WP 1.3 explicitly requires "composable reporting." Without this, operators can't legally hand off a shift in some regulatory regimes.
+**One sentence:** *Operators can build their own reports for shift handovers and incidents — no spreadsheets, no manual data entry.*
+
+---
+
+### 13. AI Virtual Sensors UI (LINKS/Politecnico EVS-ready)
+**What it does:** Adds a "Virtual Sensors" section showing computed values for physically unreachable points (vessel wall stress, core-bottom temperature, lead flow velocity). Today uses simple physics-based formulas; when LINKS delivers their LSTM models, we swap one function per sensor.
+**Why:** A nuclear reactor has places you can't put a thermocouple — the bottom of the core, the inside of the vessel wall. EVS (Edge Virtual Sensing) computes these from sensors you *can* place. WP 1.4 + WP 3.4 contractually obligate us to display these. The UI must exist before LINKS delivers, so they have something to plug into.
+**One sentence:** *We add "virtual sensors" that compute values from places we physically can't measure — the UI is ready for LINKS's ML models to drop in.*
+
+---
+
+### 14. OPC UA Data Contract Specification
+**What it does:** A markdown document (`docs/opc-ua-contract.md`) defining the exact OPC UA node IDs, data types, update rates, and WebSocket proxy format that FOS must implement on their Eclipse Milo server. Plus a stub `OpcUaTransport` class with the right interface.
+**Why:** FOS cannot build the backend correctly without a precise contract. Every byte of every message must be defined up front, or we spend months debugging mismatched expectations. This document is the single source of truth.
+**One sentence:** *We write down exactly what data FOS's backend must send and how, so they can build against a fixed target instead of guessing.*
+
+---
+
+### 15. Blockchain Certification UI (Smart Track-ready)
+**What it does:** Adds a checkmark column to the diagnostics table showing whether each sensor reading has been cryptographically certified. Today uses local FNV-64 hashing; when Smart Track delivers their blockchain API, we swap the hashing call.
+**Why:** WP 1.5 (Smart Track contract) requires sensor data integrity verification via blockchain. The HMI must display the certification state. Like the virtual sensors, the UI must exist before Smart Track delivers.
+**One sentence:** *Each sensor reading gets a tamper-proof seal — the UI is ready for Smart Track's blockchain to drop in.*
+
+---
+
+### 16. Voice Commands *(WP 3.6 Nextage NLP companion)*
+**What it does:** A mic button (and Ctrl+Space shortcut) that listens for spoken commands: *"Show overview", "Acknowledge alarm", "Use imperial units"*. Uses the browser's native SpeechRecognition API — no external service. Confirms with text-to-speech: *"Alarm acknowledged."*
+**Why:** Operators in PPE (gloves, respirator, lead apron) can't always use their hands. Voice is a primary input method in next-generation control rooms. Nextage has a €60K contract to deliver an NLP server — our voice infrastructure is the client side they'll plug into.
+**One sentence:** *Operators talk to the HMI when their hands are full — Nextage's NLP server slots into the infrastructure we build now.*
+
+---
+
+### 17. Touch — Pinch & Long-Press *(completing Prompt 4)*
+**What it does:** Two-finger pinch zoom on the P&ID diagram and 3D model. Long-press on HUD cards opens a context menu (View Trend, Diagnostics, Acknowledge).
+**Why:** Swipe alone doesn't give operators detail-level interaction. Pinch-zoom on the P&ID lets them inspect specific equipment; long-press is the touchscreen equivalent of right-click.
+**One sentence:** *Touch interaction becomes full-featured — operators can zoom into details and bring up menus without a mouse.*
+
+---
+
+## 🎯 THE WHOLE ROADMAP IN ONE PARAGRAPH
+
+> *We are turning a working HMI demo into a certifiable nuclear control room interface that will operate until 2050. Half the work is making the HMI itself smarter (predictive trends, virtual sensors, voice control, training mode). The other half is making the **architecture** ready for the backend FOS hasn't built yet — every feature that needs a server gets a working stub today, so when FOS delivers, integration is one line of code instead of a six-month rewrite. Every single feature on the list maps to either a contractual deliverable (WP 1.3, 1.4, 1.5, 3.4, 3.6), a safety standard (ISA-18.2, IEC 60964, IEC 62443, NUREG-0700, ISO 9241, OPC UA IEC 62541), or a 25-year maintainability decision. None of it is optional, and none of it is decoration.*
+
+---
+
+## 🗣 THE 30-SECOND ELEVATOR PITCH
+
+> *Half of what we're building makes the HMI smarter for operators — it predicts where the reactor is going, trains new operators with guided scenarios, lets them talk to it instead of clicking, and shows virtual sensor values for places we can't physically measure. The other half is invisible architecture work that prepares the codebase for the backend FOS is still building — so when their server is ready, we plug it in in a single afternoon instead of a six-month migration. Every item is either contractually owed to newcleo, required by a safety standard, or future-proofing for a 25-year operational lifespan.*
+
+---
+
+Want me to convert this into a one-page PDF or slide deck you can hand around?
